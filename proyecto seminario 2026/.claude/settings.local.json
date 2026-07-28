@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip --version)",
+      "Bash(pip show *)",
+      "Bash(where psql *)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Program Files \\\\\\(x86\\\\\\)/**)",
+      "Bash(where mysql *)",
+      "Bash(python -m venv venv)",
+      "Bash(./venv/Scripts/python -m pip install --upgrade pip -q)",
+      "Bash(./venv/Scripts/pip install *)",
+      "Bash(./venv/Scripts/django-admin startproject *)",
+      "Bash(./venv/Scripts/python manage.py startapp accounts)",
+      "Bash(./venv/Scripts/python manage.py migrate)",
+      "Bash(./venv/Scripts/python manage.py shell -c ' *)",
+      "Bash(rm -f accounts/migrations/0*.py)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p\"admin12345\" -e \"DROP DATABASE IF EXISTS clinica_imagenes; CREATE DATABASE clinica_imagenes CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\")",
+      "Bash(./venv/Scripts/python manage.py makemigrations accounts)",
+      "Bash(./venv/Scripts/python manage.py showmigrations auth admin contenttypes sessions accounts)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p\"admin12345\" -D clinica_imagenes -e \"SHOW TABLES;\")",
+      "Bash(./venv/Scripts/python -c ' *)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p\"admin12345\" -D clinica_imagenes -e \"SELECT COUNT\\(*\\) FROM permisos; SELECT COUNT\\(*\\) FROM tipos_contenido;\")",
+      "Bash(./venv/Scripts/python manage.py sync_permisos)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p\"admin12345\" -D clinica_imagenes -e \"SELECT COUNT\\(*\\) AS tipos_contenido FROM tipos_contenido; SELECT COUNT\\(*\\) AS permisos FROM permisos;\")",
+      "Bash('/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe' -u root -padmin12345 -D clinica_imagenes -e ' *)",
+      "Bash(./venv/Scripts/python manage.py startapp pacientes)",
+      "Bash(./venv/Scripts/python manage.py makemigrations pacientes)",
+      "Bash(./venv/Scripts/python manage.py migrate pacientes)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p\"admin12345\" -D clinica_imagenes -e \"SHOW TABLES LIKE '%pacientes%'; SHOW TABLES LIKE '%estudio%'; SHOW TABLES LIKE '%citas%'; SELECT * FROM tipos_estudio;\")",
+      "Bash(python3 -c ' *)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -p\"admin12345\" -D clinica_imagenes --default-character-set=utf8mb4 -e \"SHOW CREATE TABLE tipos_estudio\\\\G\")"
+    ]
+  }
+}

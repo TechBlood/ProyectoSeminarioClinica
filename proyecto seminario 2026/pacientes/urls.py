@@ -40,4 +40,9 @@ urlpatterns = [
         {'convenio': Cita.CONVENIO_EMERGENCIA_IGSS},
         name='agendar_cita_emergencia_igss',
     ),
+    # Nuevas rutas para pacientes
+    path('pacientes/registrar/', views.registrar_paciente, name='registrar_paciente'),
+    path('pacientes/buscar/', views.buscar_paciente, name='buscar_paciente'),
+    path('pacientes/editar/<int:paciente_id>/', views.editar_paciente, name='editar_paciente'),
+    path('citas/<int:cita_id>/cancelar/', views.cancelar_cita, name='cancelar_cita'),
 ]

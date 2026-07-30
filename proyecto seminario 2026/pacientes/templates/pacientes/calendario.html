@@ -103,8 +103,15 @@
         <a class="volver" href="{% url 'dashboard' %}">&larr; Volver al panel</a>
     </div>
     <div class="navegacion">
-        <a href="?semana={{ semana_anterior|date:'Y-m-d' }}">&larr; Semana anterior</a>
-        <a href="?semana={{ semana_siguiente|date:'Y-m-d' }}">Semana siguiente &rarr;</a>
+        <div>
+            <a href="?semana={{ semana_anterior|date:'Y-m-d' }}">&larr; Semana anterior</a>
+            <a href="?semana={{ semana_siguiente|date:'Y-m-d' }}">Semana siguiente &rarr;</a>
+        </div>
+        <div>
+            <a href="{% url 'registrar_paciente' %}">Registrar paciente</a> |
+            <a href="{% url 'buscar_paciente' %}">Buscar paciente</a> |
+            <a href="{% url 'pantalla_coex_procesar_cita' %}">Procesar cita COEX</a>
+        </div>
     </div>
     <div class="tabla-scroll">
         <table>

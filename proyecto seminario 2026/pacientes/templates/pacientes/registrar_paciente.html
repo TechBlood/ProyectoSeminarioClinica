@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registrar paciente</title>
+    <style>
+        body{font-family:Arial, sans-serif;background:#f8fafc;padding:2rem}
+        .card{background:white;padding:1.5rem;border-radius:8px;max-width:640px;margin:0 auto}
+        label{display:block;margin-top:0.75rem}
+        input, textarea{width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px}
+        button{margin-top:1rem;padding:0.6rem;background:#2563eb;color:white;border:none;border-radius:6px}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Registro de paciente</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <label>DPI</label>
+            {{ form.dpi }}
+            {{ form.dpi.errors }}
+            <label>Nombre</label>
+            {{ form.nombre }}
+            {{ form.nombre.errors }}
+            <label>Apellido</label>
+            {{ form.apellido }}
+            {{ form.apellido.errors }}
+            <label>Teléfono</label>
+            {{ form.telefono }}
+            {{ form.telefono.errors }}
+            <label>Fecha de nacimiento</label>
+            {{ form.fecha_nacimiento }}
+            {{ form.fecha_nacimiento.errors }}
+            <label>Número de expediente (opcional)</label>
+            {{ form.expediente }}
+            {{ form.expediente.errors }}
+            <button type="submit">Registrar paciente</button>
+        </form>
+    </div>
+</body>
+</html>

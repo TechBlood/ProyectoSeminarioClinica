@@ -50,6 +50,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Middleware custom para evitar cache de páginas autenticadas (previene volver atrás tras logout)
+    'clinica.middleware.NoCacheMiddleware',
 ]
 
 ROOT_URLCONF = 'clinica.urls'
@@ -88,6 +90,15 @@ DATABASES = {
         },
     }
 }
+
+# Use SQLite for local development when DJANGO_USE_SQLITE=1 (recommended)
+if config('DJANGO_USE_SQLITE', default=False, cast=bool):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation

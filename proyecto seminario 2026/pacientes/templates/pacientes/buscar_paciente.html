@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscar pacientes</title>
+    <style>body{font-family:Arial,sans-serif;padding:2rem;background:#f8fafc}.card{background:#fff;padding:1.5rem;border-radius:8px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:left}a.btn{display:inline-block;padding:0.4rem 0.6rem;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none}</style>
+</head>
+<body>
+    <div class="card">
+        <h1>Búsqueda de pacientes</h1>
+        <form method="get">
+            {{ form.q.label_tag }} {{ form.q }} <button type="submit">Buscar</button>
+            <a class="btn" href="{% url 'registrar_paciente' %}">Registrar nuevo paciente</a>
+        </form>
+
+        {% if pacientes %}
+            <table>
+                <thead><tr><th>ID</th><th>DPI</th><th>Nombre</th><th>Expediente</th><th>Acciones</th></tr></thead>
+                <tbody>
+                {% for p in pacientes %}
+                    <tr>
+                        <td>{{ p.id }}</td>
+                        <td>{{ p.dpi }}</td>
+                        <td>{{ p.nombre }} {{ p.apellido }}</td>
+                        <td>{{ p.expediente }}</td>
+                        <td>
+                            <a href="{% url 'editar_paciente' p.id %}">Editar</a>
+                            {% if p.citas.count %}
+                                | <a href="#">Ver citas ({{ p.citas.count }})</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No se encontraron pacientes.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

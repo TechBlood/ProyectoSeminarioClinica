@@ -9,9 +9,11 @@ from django.utils.dateparse import parse_date
 
 from accounts.models import Usuario
 
-from .forms import AgendarCitaForm
+from .forms import AgendarCitaForm, PacienteForm, PacienteSearchForm, CancelarCitaForm
 from .horarios import CUPO_POR_HORA, DIAS_SEMANA, horas_disponibles, inicio_semana
-from .models import Cita, Paciente
+from .models import Cita, Paciente, CambioCita
+from django.shortcuts import get_object_or_404
+from django.db.models import Q
 
 
 def es_recepcionista(user):
@@ -116,3 +118,107 @@ def agendar_cita(request, convenio):
         'fecha_valor': fecha,
         'hora_valor': hora,
     })
+
+
+# Registro de paciente independiente
+@login_required
+@user_passes_test(es_recepcionista)
+def registrar_paciente(request):
+    if request.method == 'POST':
+        form = PacienteForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Paciente registrado correctamente.')
+            return redirect('buscar_paciente')
+    else:
+        form = PacienteForm()
+    return render(request, 'pacientes/registrar_paciente.html', {'form': form})
+
+
+# Búsqueda y listado de pacientes
+@login_required
+@user_passes_test(es_recepcionista)
+def buscar_paciente(request):
+    form = PacienteSearchForm(request.GET or None)
+    pacientes = Paciente.objects.none()
+    if form.is_valid():
+        q = form.cleaned_data.get('q')
+        if q:
+            pacientes = Paciente.objects.filter(
+                    Q(dpi__icontains=q) | Q(nombre__icontains=q) | Q(expediente__icontains=q)
+            )
+    return render(request, 'pacientes/buscar_paciente.html', {'form': form, 'pacientes': pacientes})
+
+
+# Editar paciente
+@login_required
+@user_passes_test(es_recepcionista)
+def editar_paciente(request, paciente_id):
+    paciente = get_object_or_404(Paciente, pk=paciente_id)
+    if request.method == 'POST':
+        form = PacienteForm(request.POST, instance=paciente)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Datos del paciente actualizados.')
+            return redirect('buscar_paciente')
+    else:
+        form = PacienteForm(instance=paciente)
+    return render(request, 'pacientes/editar_paciente.html', {'form': form, 'paciente': paciente})
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def procesar_cita_coex(request):
+    form = PacienteSearchForm(request.GET or None)
+    citas = Cita.objects.filter(convenio=Cita.CONVENIO_COEX).select_related('paciente').order_by('fecha', 'hora')
+    if form.is_valid():
+        q = form.cleaned_data.get('q')
+        if q:
+            citas = citas.filter(
+                Q(paciente__dpi__icontains=q) |
+                Q(paciente__nombre__icontains=q) |
+                Q(paciente__apellido__icontains=q) |
+                Q(paciente__expediente__icontains=q)
+            )
+    return render(request, 'pacientes/procesar_cita_coex.html', {'form': form, 'citas': citas})
+
+
+# Cancelar o reprogramar cita y registrar motivo
+@login_required
+@user_passes_test(es_recepcionista)
+def cancelar_cita(request, cita_id):
+    cita = get_object_or_404(Cita, pk=cita_id)
+    if request.method == 'POST':
+        form = CancelarCitaForm(request.POST)
+        if form.is_valid():
+            motivo = form.cleaned_data['motivo']
+            nueva_fecha = form.cleaned_data.get('nueva_fecha')
+            nueva_hora = form.cleaned_data.get('nueva_hora')
+            if nueva_fecha and nueva_hora:
+                # reprogramación
+                CambioCita.objects.create(
+                    cita=cita,
+                    accion=CambioCita.ACCION_REPROGRAMAR,
+                    motivo=motivo,
+                    usuario=request.user,
+                )
+                cita.fecha = nueva_fecha
+                cita.hora = nueva_hora
+                cita.estado = Cita.ESTADO_AGENDADA
+                cita.save()
+                messages.success(request, 'Cita reprogramada correctamente.')
+            else:
+                # cancelación
+                CambioCita.objects.create(
+                    cita=cita,
+                    accion=CambioCita.ACCION_CANCELAR,
+                    motivo=motivo,
+                    usuario=request.user,
+                )
+                cita.estado = Cita.ESTADO_CANCELADA
+                cita.save()
+                messages.success(request, 'Cita cancelada y motivo registrado.')
+            return redirect('calendario_coex')
+    else:
+        form = CancelarCitaForm()
+    return render(request, 'pacientes/cancelar_cita.html', {'form': form, 'cita': cita})

@@ -12,28 +12,29 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Use ALTER TABLE ... RENAME TO for SQLite compatibility (MySQL uses 'RENAME TABLE')
         migrations.RunSQL(
-            sql='RENAME TABLE auth_group TO grupos;',
-            reverse_sql='RENAME TABLE grupos TO auth_group;',
+            sql='ALTER TABLE auth_group RENAME TO grupos;',
+            reverse_sql='ALTER TABLE grupos RENAME TO auth_group;',
         ),
         migrations.RunSQL(
-            sql='RENAME TABLE auth_permission TO permisos;',
-            reverse_sql='RENAME TABLE permisos TO auth_permission;',
+            sql='ALTER TABLE auth_permission RENAME TO permisos;',
+            reverse_sql='ALTER TABLE permisos RENAME TO auth_permission;',
         ),
         migrations.RunSQL(
-            sql='RENAME TABLE auth_group_permissions TO grupos_permisos;',
-            reverse_sql='RENAME TABLE grupos_permisos TO auth_group_permissions;',
+            sql='ALTER TABLE auth_group_permissions RENAME TO grupos_permisos;',
+            reverse_sql='ALTER TABLE grupos_permisos RENAME TO auth_group_permissions;',
         ),
         migrations.RunSQL(
-            sql='RENAME TABLE django_content_type TO tipos_contenido;',
-            reverse_sql='RENAME TABLE tipos_contenido TO django_content_type;',
+            sql='ALTER TABLE django_content_type RENAME TO tipos_contenido;',
+            reverse_sql='ALTER TABLE tipos_contenido RENAME TO django_content_type;',
         ),
         migrations.RunSQL(
-            sql='RENAME TABLE django_session TO sesiones;',
-            reverse_sql='RENAME TABLE sesiones TO django_session;',
+            sql='ALTER TABLE django_session RENAME TO sesiones;',
+            reverse_sql='ALTER TABLE sesiones RENAME TO django_session;',
         ),
         migrations.RunSQL(
-            sql='RENAME TABLE django_admin_log TO registros_admin;',
-            reverse_sql='RENAME TABLE registros_admin TO django_admin_log;',
+            sql='ALTER TABLE django_admin_log RENAME TO registros_admin;',
+            reverse_sql='ALTER TABLE registros_admin RENAME TO django_admin_log;',
         ),
     ]

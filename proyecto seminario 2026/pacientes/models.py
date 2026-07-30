@@ -8,6 +8,7 @@ class Paciente(models.Model):
     apellido = models.CharField(max_length=100)
     telefono = models.CharField(max_length=20, blank=True)
     fecha_nacimiento = models.DateField()
+    expediente = models.CharField(max_length=30, blank=True, null=True, verbose_name='Número de expediente')
 
     class Meta:
         db_table = 'pacientes'
@@ -43,10 +44,12 @@ class Cita(models.Model):
 
     ESTADO_AGENDADA = 'agendada'
     ESTADO_PROCESADA = 'procesada'
+    ESTADO_CANCELADA = 'cancelada'
 
     ESTADO_CHOICES = [
         (ESTADO_AGENDADA, 'Agendada'),
         (ESTADO_PROCESADA, 'Procesada'),
+        (ESTADO_CANCELADA, 'Cancelada'),
     ]
 
     paciente = models.ForeignKey(Paciente, on_delete=models.PROTECT, related_name='citas')
@@ -69,3 +72,28 @@ class Cita(models.Model):
 
     def __str__(self):
         return f'{self.paciente} - {self.fecha} {self.hora}'
+
+
+class CambioCita(models.Model):
+    ACCION_CANCELAR = 'cancelar'
+    ACCION_REPROGRAMAR = 'reprogramar'
+
+    ACCION_CHOICES = [
+        (ACCION_CANCELAR, 'Cancelar'),
+        (ACCION_REPROGRAMAR, 'Reprogramar'),
+    ]
+
+    cita = models.ForeignKey(Cita, on_delete=models.CASCADE, related_name='cambios')
+    accion = models.CharField(max_length=20, choices=ACCION_CHOICES)
+    motivo = models.TextField()
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    fecha_cambio = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'cambios_cita'
+        verbose_name = 'cambio de cita'
+        verbose_name_plural = 'cambios de cita'
+        ordering = ['-fecha_cambio']
+
+    def __str__(self):
+        return f'{self.get_accion_display()} para {self.cita} por {self.usuario} en {self.fecha_cambio}'

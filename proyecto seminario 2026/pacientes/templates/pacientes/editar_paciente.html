@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar paciente</title>
+    <style>body{font-family:Arial;padding:2rem;background:#f8fafc}.card{background:#fff;padding:1.5rem;border-radius:8px;max-width:640px;margin:0 auto}label{display:block;margin-top:0.75rem}input,textarea{width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px}button{margin-top:1rem;padding:0.6rem;background:#2563eb;color:white;border:none;border-radius:6px}</style>
+</head>
+<body>
+    <div class="card">
+        <h1>Editar paciente — {{ paciente }}</h1>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <label>DPI</label>
+            {{ form.dpi }}
+            {{ form.dpi.errors }}
+            <label>Nombre</label>
+            {{ form.nombre }}
+            <label>Apellido</label>
+            {{ form.apellido }}
+            <label>Teléfono</label>
+            {{ form.telefono }}
+            <label>Fecha de nacimiento</label>
+            {{ form.fecha_nacimiento }}
+            <label>Número de expediente</label>
+            {{ form.expediente }}
+            <button type="submit">Guardar cambios</button>
+        </form>
+    </div>
+</body>
+</html>

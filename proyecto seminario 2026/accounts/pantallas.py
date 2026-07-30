@@ -17,7 +17,9 @@ PANTALLAS_POR_ROL = {
             'clave': 'coex',
             'submenu': [
                 {'nombre': 'Agendar cita', 'url_name': 'calendario_coex'},
-                {'nombre': 'Procesar cita', 'clave': 'coex_procesar_cita'},
+                {'nombre': 'Registrar paciente', 'url_name': 'registrar_paciente'},
+                {'nombre': 'Buscar paciente', 'url_name': 'buscar_paciente'},
+                {'nombre': 'Procesar cita', 'url_name': 'pantalla_coex_procesar_cita'},
             ],
         },
         {'nombre': 'PRIVADO', 'clave': 'privado'},

@@ -3,15 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <title>Buscar pacientes</title>
-    <style>body{font-family:Arial,sans-serif;padding:2rem;background:#f8fafc}.card{background:#fff;padding:1.5rem;border-radius:8px;max-width:900px;margin:0 auto}table{width:100%;border-collapse:collapse;margin-top:1rem}th,td{padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:left}a.btn{display:inline-block;padding:0.4rem 0.6rem;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none}</style>
+    <style>
+        body{font-family:Arial,sans-serif;padding:2rem;background:#f1f5f9}
+        .topbar{display:flex;justify-content:space-between;align-items:center;max-width:900px;margin:0 auto 1rem}
+        .topbar h1{margin:0;font-size:1.25rem;color:#0f172a}
+        a.volver{color:#2563eb;text-decoration:none}
+        .card{background:#fff;padding:1.5rem;border-radius:8px;max-width:900px;margin:0 auto;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+        form.search{display:flex;gap:0.5rem;align-items:center}
+        form.search input[type=text]{flex:1;padding:0.5rem;border:1px solid #cbd5e1;border-radius:6px}
+        form.search button{padding:0.5rem 0.75rem;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer}
+        a.btn{display:inline-block;padding:0.4rem 0.6rem;background:#10b981;color:#fff;border-radius:6px;text-decoration:none}
+        table{width:100%;border-collapse:collapse;margin-top:1rem}
+        th,td{padding:0.6rem;border-bottom:1px solid #e6eef7;text-align:left}
+        th{background:#f8fafc;font-weight:600}
+        tr:hover td{background:#fbfdff}
+        .actions a{display:inline-block;padding:0.25rem 0.5rem;border-radius:6px;text-decoration:none;font-size:0.9rem}
+        .actions a.edit{background:#2563eb;color:white}
+        .no-results{padding:1rem;background:#fff3cd;border:1px solid #ffe8a1;border-radius:6px}
+    </style>
 </head>
 <body>
-    <div class="card">
+    <div class="topbar">
         <h1>Búsqueda de pacientes</h1>
-        <form method="get">
-            {{ form.q.label_tag }} {{ form.q }} <button type="submit">Buscar</button>
+        <a class="volver" href="{% url 'pantalla_placeholder' 'coex' %}">&larr; Volver a COEX</a>
+    </div>
+    <div class="card">
+        <form method="get" class="search">
+            {{ form.q }}
+            <button type="submit">Buscar</button>
             <a class="btn" href="{% url 'registrar_paciente' %}">Registrar nuevo paciente</a>
         </form>
+        <p style="margin-top:0.75rem;color:#64748b;font-size:0.95rem">Buscar por: DPI, nombre o número de expediente</p>
 
         {% if pacientes %}
             <table>
@@ -23,10 +45,10 @@
                         <td>{{ p.dpi }}</td>
                         <td>{{ p.nombre }} {{ p.apellido }}</td>
                         <td>{{ p.expediente }}</td>
-                        <td>
-                            <a href="{% url 'editar_paciente' p.id %}">Editar</a>
+                        <td class="actions">
+                            <a class="edit" href="{% url 'editar_paciente' p.id %}">Editar</a>
                             {% if p.citas.count %}
-                                | <a href="#">Ver citas ({{ p.citas.count }})</a>
+                                <a href="{% url 'listar_citas_paciente' p.id %}">Ver citas ({{ p.citas.count }})</a>
                             {% endif %}
                         </td>
                     </tr>
@@ -34,7 +56,7 @@
                 </tbody>
             </table>
         {% else %}
-            <p>No se encontraron pacientes.</p>
+            <div class="no-results">No se encontraron pacientes.</div>
         {% endif %}
     </div>
 </body>

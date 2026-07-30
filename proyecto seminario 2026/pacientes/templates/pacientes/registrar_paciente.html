@@ -4,35 +4,41 @@
     <meta charset="UTF-8">
     <title>Registrar paciente</title>
     <style>
-        body{font-family:Arial, sans-serif;background:#f8fafc;padding:2rem}
-        .card{background:white;padding:1.5rem;border-radius:8px;max-width:640px;margin:0 auto}
-        label{display:block;margin-top:0.75rem}
-        input, textarea{width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px}
-        button{margin-top:1rem;padding:0.6rem;background:#2563eb;color:white;border:none;border-radius:6px}
+        body{font-family:Arial, sans-serif;background:#f1f5f9;padding:2rem}
+        .topbar{display:flex;justify-content:space-between;align-items:center;max-width:700px;margin:0 auto 1rem}
+        .topbar h1{margin:0;font-size:1.25rem;color:#0f172a}
+        a.volver{color:#2563eb;text-decoration:none}
+        .card{background:white;padding:1.5rem;border-radius:8px;max-width:700px;margin:0 auto;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+        label{display:block;margin-top:0.75rem;color:#334155}
+        input, textarea{width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;background:#fbfdff}
+        button{margin-top:1rem;padding:0.6rem;background:#10b981;color:white;border:none;border-radius:8px;font-weight:bold}
     </style>
 </head>
 <body>
-    <div class="card">
+    <div class="topbar">
         <h1>Registro de paciente</h1>
+        <a class="volver" href="{% url 'pantalla_placeholder' 'coex' %}">&larr; Volver a COEX</a>
+    </div>
+    <div class="card">
         <form method="post">
             {% csrf_token %}
             {{ form.non_field_errors }}
-            <label>DPI</label>
+            <label for="{{ form.dpi.id_for_label }}">DPI</label>
             {{ form.dpi }}
             {{ form.dpi.errors }}
-            <label>Nombre</label>
+            <label for="{{ form.nombre.id_for_label }}">Nombre</label>
             {{ form.nombre }}
             {{ form.nombre.errors }}
-            <label>Apellido</label>
+            <label for="{{ form.apellido.id_for_label }}">Apellido</label>
             {{ form.apellido }}
             {{ form.apellido.errors }}
-            <label>Teléfono</label>
+            <label for="{{ form.telefono.id_for_label }}">Teléfono</label>
             {{ form.telefono }}
             {{ form.telefono.errors }}
-            <label>Fecha de nacimiento</label>
+            <label for="{{ form.fecha_nacimiento.id_for_label }}">Fecha de nacimiento</label>
             {{ form.fecha_nacimiento }}
             {{ form.fecha_nacimiento.errors }}
-            <label>Número de expediente (opcional)</label>
+            <label for="{{ form.expediente.id_for_label }}">Número de expediente (opcional)</label>
             {{ form.expediente }}
             {{ form.expediente.errors }}
             <button type="submit">Registrar paciente</button>

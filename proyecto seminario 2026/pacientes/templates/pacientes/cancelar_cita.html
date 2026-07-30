@@ -3,23 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <title>Cancelar / Reprogramar cita</title>
-    <style>body{font-family:Arial;padding:2rem;background:#f8fafc}.card{background:#fff;padding:1.5rem;border-radius:8px;max-width:720px;margin:0 auto}label{display:block;margin-top:0.75rem}input,textarea{width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:6px}button{margin-top:1rem;padding:0.6rem;background:#dc2626;color:white;border:none;border-radius:6px} .secondary{background:#2563eb}</style>
+    <style>
+        body{font-family:Arial;padding:2rem;background:#f1f5f9}
+        .topbar{display:flex;justify-content:space-between;align-items:center;max-width:720px;margin:0 auto 1rem}
+        .topbar h1{margin:0;font-size:1.15rem;color:#0f172a}
+        a.volver{color:#2563eb;text-decoration:none}
+        .card{background:#fff;padding:1.5rem;border-radius:8px;max-width:720px;margin:0 auto;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+        label{display:block;margin-top:0.75rem;color:#334155}
+        input,textarea{width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;background:#fbfdff}
+        button{margin-top:1rem;padding:0.6rem;background:#dc2626;color:white;border:none;border-radius:8px;font-weight:bold}
+        .secondary{background:#2563eb;color:white;padding:0.5rem 0.75rem;text-decoration:none;border-radius:6px;display:inline-block;margin-left:8px}
+    </style>
 </head>
 <body>
-    <div class="card">
+    <div class="topbar">
         <h1>Cancelar / Reprogramar cita</h1>
+        <a class="volver" href="{% url 'dashboard' %}">&larr; Volver al panel</a>
+    </div>
+    <div class="card">
         <p><strong>Cita:</strong> {{ cita.paciente }} — {{ cita.fecha }} {{ cita.hora }}</p>
         <form method="post">
             {% csrf_token %}
             {{ form.non_field_errors }}
-            <label>Motivo (obligatorio)</label>
+            <label for="{{ form.motivo.id_for_label }}">Motivo (obligatorio)</label>
             {{ form.motivo }}
-            <label>Nueva fecha (si reprogramas)</label>
+            <label for="{{ form.nueva_fecha.id_for_label }}">Nueva fecha (si reprogramas)</label>
             {{ form.nueva_fecha }}
-            <label>Nueva hora (si reprogramas)</label>
+            <label for="{{ form.nueva_hora.id_for_label }}">Nueva hora (si reprogramas)</label>
             {{ form.nueva_hora }}
             <button type="submit">Enviar</button>
-            <a class="secondary" href="{% url 'calendario_coex' %}" style="display:inline-block;margin-left:8px;padding:0.5rem 0.75rem;color:white;text-decoration:none;border-radius:6px">Volver</a>
+            <a class="secondary" href="{% url 'calendario_coex' %}">Volver</a>
         </form>
     </div>
 </body>

@@ -139,15 +139,24 @@ def registrar_paciente(request):
 @login_required
 @user_passes_test(es_recepcionista)
 def buscar_paciente(request):
+    """Mostrar búsqueda de pacientes. Si no se suministra query, listar todos."""
     form = PacienteSearchForm(request.GET or None)
-    pacientes = Paciente.objects.none()
+    pacientes = Paciente.objects.all().order_by('apellido', 'nombre')
     if form.is_valid():
         q = form.cleaned_data.get('q')
         if q:
-            pacientes = Paciente.objects.filter(
-                    Q(dpi__icontains=q) | Q(nombre__icontains=q) | Q(expediente__icontains=q)
+            pacientes = pacientes.filter(
+                Q(dpi__icontains=q) | Q(nombre__icontains=q) | Q(expediente__icontains=q)
             )
     return render(request, 'pacientes/buscar_paciente.html', {'form': form, 'pacientes': pacientes})
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def listar_citas_paciente(request, paciente_id):
+    paciente = get_object_or_404(Paciente, pk=paciente_id)
+    citas = Cita.objects.filter(paciente=paciente).order_by('fecha', 'hora')
+    return render(request, 'pacientes/listar_citas_paciente.html', {'paciente': paciente, 'citas': citas})
 
 
 # Editar paciente

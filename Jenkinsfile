@@ -18,8 +18,8 @@ pipeline {
             steps {
                 bat '''
                 python -m venv .venv
-                .venv/Scripts/python.exe -m pip install --upgrade pip setuptools wheel
-                .venv/Scripts/python.exe -m pip install -r requirements.txt
+                ".venv\\Scripts\\python.exe" -m pip install --upgrade pip setuptools wheel
+                ".venv\\Scripts\\python.exe" -m pip install -r requirements.txt
                 '''
             }
         }
@@ -27,7 +27,7 @@ pipeline {
         stage('Apply Migrations') {
             steps {
                 bat '''
-                .venv/Scripts/python.exe manage.py migrate --noinput
+                ".venv\\Scripts\\python.exe" manage.py migrate --noinput
                 '''
             }
         }
@@ -35,7 +35,7 @@ pipeline {
         stage('Run Login Tests') {
             steps {
                 bat '''
-                .venv/Scripts/python.exe manage.py test accounts.tests.LoginViewTests
+                ".venv\\Scripts\\python.exe" manage.py test accounts.tests.LoginViewTests
                 '''
             }
         }

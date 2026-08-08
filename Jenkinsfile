@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+        skipDefaultCheckout()
+    }
+
     environment {
         PYTHONUNBUFFERED = '1'
         DJANGO_SETTINGS_MODULE = 'clinica.settings'

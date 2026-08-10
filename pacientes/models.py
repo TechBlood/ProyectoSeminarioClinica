@@ -3,6 +3,7 @@ import re
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -18,11 +19,11 @@ def validar_nombre_apellido(value):
 
 
 class Paciente(models.Model):
-    dpi = models.CharField(max_length=20, unique=True, verbose_name='DPI', validators=[validar_dpi_guatemala])
-    nombre = models.CharField(max_length=100, validators=[validar_nombre_apellido])
-    apellido = models.CharField(max_length=100, validators=[validar_nombre_apellido])
+    dpi = models.CharField(max_length=20, unique=True, verbose_name='DPI', validators=[validar_dpi_guatemala], blank=True, null=True)
+    nombre = models.CharField(max_length=100, validators=[validar_nombre_apellido], blank=True)
+    apellido = models.CharField(max_length=100, validators=[validar_nombre_apellido], blank=True)
     telefono = models.CharField(max_length=20, blank=True)
-    fecha_nacimiento = models.DateField()
+    fecha_nacimiento = models.DateField(blank=True, null=True)
     expediente = models.CharField(
         max_length=30,
         blank=True,
@@ -204,23 +205,34 @@ class Ticket(models.Model):
         return f'{self.turno} - {self.paciente or "Paciente desconocido"}'
 
     def save(self, *args, **kwargs):
+        # Ensure hora_llegada is set
         if not self.hora_llegada:
             self.hora_llegada = timezone.now()
 
-        if self.numero_diario == 0:
-            fecha = self.hora_llegada.date()
-            ultimo = Ticket.objects.filter(servicio=self.servicio, hora_llegada__date=fecha).aggregate(max_num=Max('numero_diario'))
-            self.numero_diario = (ultimo['max_num'] or 0) + 1
+        fecha = self.hora_llegada.date()
+        # Use a transaction and a dedicated daily sequence row to avoid race
+        # conditions when generating the daily sequential number (numero_diario).
+        with transaction.atomic():
+            if self.numero_diario == 0:
+                # DailySequence ensures a single counter per (servicio, fecha).
+                seq, created = DailySequence.objects.select_for_update().get_or_create(
+                    servicio=self.servicio,
+                    fecha=fecha,
+                    defaults={'ultimo': 0}
+                )
+                seq.ultimo = seq.ultimo + 1
+                seq.save()
+                self.numero_diario = seq.ultimo
 
-        if not self.turno:
-            prefijo = {
-                Ticket.SERVICIO_COEX: 'COEX',
-                Ticket.SERVICIO_IGSS: 'IGSS',
-                Ticket.SERVICIO_EMERGENCIA: 'EMERG',
-            }.get(self.servicio, self.servicio.upper())
-            self.turno = f'{prefijo}-{self.numero_diario:03d}'
+            if not self.turno:
+                prefijo = {
+                    Ticket.SERVICIO_COEX: 'COEX',
+                    Ticket.SERVICIO_IGSS: 'IGSS',
+                    Ticket.SERVICIO_EMERGENCIA: 'EMERG',
+                }.get(self.servicio, self.servicio.upper())
+                self.turno = f'{prefijo}-{self.numero_diario:03d}'
 
-        super().save(*args, **kwargs)
+            super().save(*args, **kwargs)
 
     @property
     def tiempo_espera(self):
@@ -232,6 +244,26 @@ class Ticket(models.Model):
     def minutos_espera(self):
         espera = self.tiempo_espera
         return int(espera.total_seconds() // 60) if espera else None
+
+
+class DailySequence(models.Model):
+    """Contador diario por servicio para generar numero_diario de tickets.
+
+    Se usa una fila por (servicio, fecha) y se actualiza con select_for_update
+    dentro de una transacción para garantizar secuencialidad.
+    """
+    servicio = models.CharField(max_length=20)
+    fecha = models.DateField()
+    ultimo = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'daily_sequences'
+        verbose_name = 'secuencia diaria'
+        verbose_name_plural = 'secuencias diarias'
+        unique_together = ('servicio', 'fecha')
+
+    def __str__(self):
+        return f'{self.servicio} {self.fecha} -> {self.ultimo}'
 
 
 class TicketCambioEstado(models.Model):

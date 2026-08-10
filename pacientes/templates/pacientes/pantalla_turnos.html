@@ -90,6 +90,7 @@
                     body.innerHTML = '';
                     data.cola.forEach(ticket => {
                         const tr = document.createElement('tr');
+                        const updateUrl = `/pantalla/turnos/actualizar/${ticket.id}/`;
                         tr.innerHTML = `
                             <td>${ticket.turno}</td>
                             <td>${ticket.paciente}</td>
@@ -97,7 +98,7 @@
                             <td>${ticket.prioridad}</td>
                             <td>${ticket.hora_llegada || '-'} </td>
                             <td>En Espera</td>
-                            <td>-</td>
+                            <td><a class="action" href="${updateUrl}">Actualizar</a></td>
                         `;
                         body.appendChild(tr);
                     });

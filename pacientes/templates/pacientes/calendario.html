@@ -95,6 +95,7 @@
             margin-right: 0.3rem;
             vertical-align: middle;
         }
+        .pasado{display:block;padding:0.4rem;border-radius:6px;background:#e2e8f0;color:#475569;font-weight:600}
     </style>
 </head>
 <body>
@@ -126,10 +127,14 @@
                     <td class="hora">{{ fila.hora }}:00</td>
                     {% for celda in fila.celdas %}
                         <td>
-                            {% if celda.lleno %}
-                                <span class="lleno">Lleno ({{ celda.cantidad }}/{{ cupo }})</span>
+                            {% if celda.dia < inicio_actual %}
+                                <span class="pasado">Pasado</span>
                             {% else %}
-                                <a class="slot" href="{% url agendar_url_name %}?fecha={{ celda.dia|date:'Y-m-d' }}&hora={{ celda.hora|stringformat:'02d' }}:00">{{ celda.cantidad }}/{{ cupo }}</a>
+                                {% if celda.lleno %}
+                                    <span class="lleno">Lleno ({{ celda.cantidad }}/{{ cupo }})</span>
+                                {% else %}
+                                    <a class="slot" href="{% url agendar_url_name %}?fecha={{ celda.dia|date:'Y-m-d' }}&hora={{ celda.hora|stringformat:'02d' }}:00">{{ celda.cantidad }}/{{ cupo }}</a>
+                                {% endif %}
                             {% endif %}
                         </td>
                     {% endfor %}

@@ -26,15 +26,9 @@ class LoginViewTests(TestCase):
         self.assertRedirects(response, reverse('dashboard'))
         self.assertTrue(response.context['user'].is_authenticated)
 
-    def test_simular_fallo_en_login(self):
-        # 1. Enviamos una contraseña incorrecta ('wrongpassword')
+    def test_login_with_invalid_credentials_does_not_authenticate(self):
         response = self.client.post(
             reverse('login'),
             data={'username': 'recepcionista1', 'password': 'wrongpassword'},
         )
-        # 2. Le decimos al test que ESPERE que el usuario SÍ esté autenticado (assertTrue)
-        # Como el usuario NO se va a autenticar, la prueba FALLARÁ intencionalmente.
-        self.assertTrue(
-            response.wsgi_request.user.is_authenticated,
-            msg="ERROR SIMULADO: El sistema no autenticó al usuario con clave incorrecta.",
-        )
+        self.assertFalse(response.wsgi_request.user.is_authenticated)

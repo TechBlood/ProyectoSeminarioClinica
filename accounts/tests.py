@@ -30,7 +30,7 @@ class LoginViewTests(TestCase):
         # 1. Enviamos una contraseña incorrecta ('wrongpassword')
         response = self.client.post(
             reverse('login'),
-            data={'username': 'recepcionista123', 'password': 'testpass123'},
+            data={'username': 'recepcionista1', 'password': 'wrongpassword'},
         )
         # 2. Le decimos al test que ESPERE que el usuario SÍ esté autenticado (assertTrue)
         # Como el usuario NO se va a autenticar, la prueba FALLARÁ intencionalmente.

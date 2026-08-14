@@ -16,6 +16,7 @@ PANTALLAS_POR_ROL = {
             'nombre': 'COEX',
             'clave': 'coex',
             'submenu': [
+                {'nombre': 'Check-in Recepción', 'url_name': 'check_in_recepcion'},
                 {'nombre': 'Agendar cita', 'url_name': 'calendario_coex'},
                 {'nombre': 'Registrar paciente', 'url_name': 'registrar_paciente'},
                 {'nombre': 'Buscar paciente', 'url_name': 'buscar_paciente'},

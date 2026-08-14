@@ -41,7 +41,6 @@
         {% endif %}
         <form method="get" class="search" id="patient-search-form">
             {{ form.q }}
-            <button type="submit">Buscar</button>
             <a class="btn" href="{% url 'registrar_paciente' %}">Registrar nuevo paciente</a>
         </form>
         <p style="margin-top:0.75rem;color:#64748b;font-size:0.95rem">Buscar por: DPI, nombre, apellido, número de expediente interno o expediente IGSS</p>

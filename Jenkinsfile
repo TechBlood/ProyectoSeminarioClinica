@@ -123,10 +123,18 @@ pipeline {
             archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
 
             // Requiere el plugin "Cobertura"; si usas el plugin "Coverage"
-            // moderno, sustituye por: recordCoverage(...)
+            // moderno, sustituye por: recordCoverage(...). Envuelto en
+            // try/catch porque si el plugin no está instalado, el paso
+            // "cobertura" ni siquiera existe como método DSL y tira un
+            // NoSuchMethodError que tumba todo el pipeline; así solo se
+            // omite con un aviso y el build no se ve afectado por esto.
             script {
                 if (fileExists('reports/coverage.xml')) {
-                    cobertura coberturaReportFile: 'reports/coverage.xml'
+                    try {
+                        cobertura coberturaReportFile: 'reports/coverage.xml'
+                    } catch (err) {
+                        echo "Aviso: no se pudo publicar el reporte de cobertura (¿falta el plugin 'Cobertura'?): ${err}"
+                    }
                 }
             }
 

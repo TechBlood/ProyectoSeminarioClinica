@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     options {
-        // Evita que Jenkins descargue el repositorio dos veces.
         skipDefaultCheckout()
         timestamps()
     }
@@ -10,12 +9,10 @@ pipeline {
     environment {
         PYTHONUNBUFFERED = '1'
         DJANGO_SETTINGS_MODULE = 'clinica.settings'
-
-        // Indica al proyecto que use SQLite durante las pruebas de Jenkins.
         DJANGO_USE_SQLITE = '1'
-
-        // Evita mensajes innecesarios de actualización de pip.
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
+
+        PYTHON_EXE = 'C:\\Users\\DanielMancilla 98\\AppData\\Local\\Python\\bin\\python.exe'
     }
 
     stages {
@@ -28,8 +25,8 @@ pipeline {
         stage('Comprobar Python') {
             steps {
                 bat '''
-                    python --version
-                    python -m pip --version
+                    "%PYTHON_EXE%" --version
+                    "%PYTHON_EXE%" -m pip --version
                 '''
             }
         }
@@ -39,7 +36,7 @@ pipeline {
                 bat '''
                     if exist .venv rmdir /s /q .venv
 
-                    python -m venv .venv
+                    "%PYTHON_EXE%" -m venv .venv
 
                     ".venv\\Scripts\\python.exe" -m pip install --upgrade pip setuptools wheel
 

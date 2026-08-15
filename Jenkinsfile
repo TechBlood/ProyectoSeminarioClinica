@@ -2,16 +2,24 @@ pipeline {
     agent any
 
     options {
+        // Evita que Jenkins descargue el repositorio dos veces.
         skipDefaultCheckout()
+
+        // Muestra la hora de ejecución en la consola.
         timestamps()
     }
 
     environment {
         PYTHONUNBUFFERED = '1'
         DJANGO_SETTINGS_MODULE = 'clinica.settings'
+
+        // Jenkins utilizará SQLite durante las pruebas.
         DJANGO_USE_SQLITE = '1'
+
+        // Evita mensajes innecesarios de actualización de pip.
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
 
+        // Ruta de Python instalada en la computadora.
         PYTHON_EXE = 'C:\\Users\\DanielMancilla 98\\AppData\\Local\\Python\\bin\\python.exe'
     }
 
@@ -64,6 +72,8 @@ pipeline {
         stage('Ejecutar pruebas Django') {
             steps {
                 bat '''
+                    if exist test-reports rmdir /s /q test-reports
+
                     ".venv\\Scripts\\python.exe" manage.py test --verbosity=2
                 '''
             }
@@ -71,6 +81,19 @@ pipeline {
     }
 
     post {
+        always {
+            echo 'El Pipeline de Jenkins ha finalizado.'
+
+            // Publica los archivos XML y genera la gráfica de pruebas.
+            junit testResults: 'test-reports/**/*.xml',
+                  allowEmptyResults: false
+
+            // Elimina el entorno virtual temporal de Jenkins.
+            bat '''
+                if exist .venv rmdir /s /q .venv
+            '''
+        }
+
         success {
             echo 'Todas las pruebas de Django finalizaron correctamente.'
         }
@@ -79,12 +102,8 @@ pipeline {
             echo 'Una o más etapas fallaron. Revisa la salida de consola de Jenkins.'
         }
 
-        always {
-            echo 'El Pipeline de Jenkins ha finalizado.'
-
-            bat '''
-                if exist .venv rmdir /s /q .venv
-            '''
+        unstable {
+            echo 'Algunas pruebas no fueron aprobadas. Revisa los resultados publicados.'
         }
     }
 }

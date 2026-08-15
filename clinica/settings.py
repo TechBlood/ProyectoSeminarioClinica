@@ -147,3 +147,8 @@ LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
 AUTH_USER_MODEL = 'accounts.Usuario'
+
+# Generar reportes XML para Jenkins
+TEST_RUNNER = 'xmlrunner.extra.djangotestrunner.XMLTestRunner'
+TEST_OUTPUT_DIR = str(BASE_DIR / 'test-reports')
+TEST_OUTPUT_VERBOSE = 2

@@ -50,7 +50,9 @@ class AgendarCitaForm(forms.Form):
     )
     radiologo = forms.ModelChoiceField(
         label='Radiólogo asignado',
-        queryset=Usuario.objects.filter(rol=Usuario.ROL_MEDICO_RADIOLOGO, is_active=True).order_by('username'),
+        queryset=Usuario.objects.filter(
+            rol=Usuario.ROL_MEDICO_RADIOLOGO, is_active=True
+        ).order_by('username'),
     )
     fecha = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
     hora = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))

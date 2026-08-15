@@ -293,7 +293,8 @@ def agendar_cita(request, convenio):
         messages.success(
             request,
             f'Solicitud enviada a {cd["radiologo"]} para {paciente.nombre} {paciente.apellido} '
-            f'(sugerido: {cd["fecha"]} a las {cd["hora"]}). Quedará agendada cuando la radióloga la confirme.',
+            f'(sugerido: {cd["fecha"]} a las {cd["hora"]}). '
+            'Quedará agendada cuando la radióloga la confirme.',
         )
         return redirect('dashboard')
 
@@ -574,7 +575,10 @@ def revisar_solicitud(request, cita_id):
             request=request,
             usuario=request.user,
             accion=Bitacora.ACCION_CONFIRMAR_CITA,
-            descripcion=f'Confirmó la cita de {cita.paciente} para el {fecha} a las {hora_str} (cita #{cita.id}).',
+            descripcion=(
+                f'Confirmó la cita de {cita.paciente} para el {fecha} '
+                f'a las {hora_str} (cita #{cita.id}).'
+            ),
         )
         messages.success(request, f'Cita de {cita.paciente} confirmada para el {fecha} a las {hora_str}.')
         return redirect(volver_url)
@@ -640,7 +644,10 @@ def confirmar_reagenda(request, convenio, cita_id):
             request=request,
             usuario=request.user,
             accion=Bitacora.ACCION_REAGENDAR_CITA,
-            descripcion=f'Reagendó la cita de {cita.paciente} para el {fecha} a las {hora} (cita #{cita.id}).',
+            descripcion=(
+                f'Reagendó la cita de {cita.paciente} para el {fecha} '
+                f'a las {hora} (cita #{cita.id}).'
+            ),
         )
         messages.success(request, f'Cita de {cita.paciente} reagendada para el {fecha} a las {hora}.')
         return redirect(f'{reverse(f"procesar_citas_{convenio}")}?fecha={fecha}')

@@ -46,9 +46,22 @@ def crear_cita(usuario, paciente=None, tipo_estudio=None, **kwargs):
     return Cita.objects.create(**datos)
 
 
+class PacienteModelTests(TestCase):
+
+    def test_edad_en_antes_de_su_cumpleanos_no_cuenta_el_anio_actual(self):
+        paciente = crear_paciente(fecha_nacimiento=datetime.date(2000, 8, 20))
+        self.assertEqual(paciente.edad_en(datetime.date(2026, 8, 7)), 25)
+
+    def test_edad_en_el_dia_de_su_cumpleanos_ya_cuenta_el_anio(self):
+        paciente = crear_paciente(fecha_nacimiento=datetime.date(2000, 8, 20))
+        self.assertEqual(paciente.edad_en(datetime.date(2026, 8, 20)), 26)
+
+    def test_str_incluye_nombre_apellido_y_dpi(self):
+        paciente = crear_paciente(nombre='Juana', apellido='Pérez', dpi='1111222233330')
+        self.assertEqual(str(paciente), 'Juana Pérez (1111222233330)')
 
 
-
+class CitaModelTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista1')
@@ -126,6 +139,7 @@ def crear_cita(usuario, paciente=None, tipo_estudio=None, **kwargs):
         self.assertEqual(cita.estado, Cita.ESTADO_AGENDADA)
 
 
+class OrdenTrabajoModelTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('tecnico1')
@@ -160,7 +174,7 @@ def crear_cita(usuario, paciente=None, tipo_estudio=None, **kwargs):
         self.assertEqual(orden.edad_paciente, 19)
 
 
-
+class HorariosTests(TestCase):
 
     def test_horas_disponibles_va_de_inicio_a_fin_sin_incluir_el_fin(self):
         self.assertEqual(horarios.horas_disponibles(), list(range(7, 17)))
@@ -186,7 +200,7 @@ def crear_cita(usuario, paciente=None, tipo_estudio=None, **kwargs):
         self.assertTrue(horarios.fuera_de_ventana(fecha))
 
 
-
+class TicketModelTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_tickets')
@@ -372,7 +386,7 @@ class AgendarCitaViewTests(TestCase):
         self.assertEqual(paciente.telefono, '55599999')
 
 
-
+class PantallaTurnosEmergenciaViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_turnos', rol=Usuario.ROL_RECEPCIONISTA)
@@ -397,7 +411,7 @@ class AgendarCitaViewTests(TestCase):
         self.assertNotIn(ticket_atendido, cola)
 
 
-
+class ProcesarTicketEmergenciaViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_procesar', rol=Usuario.ROL_RECEPCIONISTA)
@@ -472,6 +486,7 @@ class AgendarCitaViewTests(TestCase):
         self.assertEqual(Cita.objects.filter(paciente=self.paciente).count(), 1)
 
 
+class FechaNacimientoNoFuturaTests(TestCase):
     """HU: al agendar una cita o registrar un ticket, la fecha de nacimiento
     no puede quedar en el futuro."""
 
@@ -655,7 +670,7 @@ class AgendarCitaViewTests(TestCase):
         )
 
 
-
+class NotificacionesPendientesViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('usuario_notif_api', rol=Usuario.ROL_TECNICO_IMAGENES)

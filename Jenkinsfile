@@ -75,34 +75,5 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            junit testResults: 'reports/junit.xml', allowEmptyResults: true
-            archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
-
-         l build.
-            script {
-                if (fileExists('reports/coverage.xml')) {
-                    catchError(buildResult: null, stageResult: null,
-                               message: "Plugin 'Cobertura' no instalado en este Jenkins; se omite la publicación de cobertura.") {
-                        cobertura coberturaReportFile: 'reports/coverage.xml'
-                    }
-                }
-            }
-
-            bat '''
-                if exist .venv-ci rmdir /s /q .venv-ci
-                if exist media_test rmdir /s /q media_test
-            '''
-        }
-        success {
-            echo 'Pipeline OK: pruebas y lint completados.'
-        }
-        unstable {
-            echo 'Pipeline inestable: revisa el reporte de flake8.'
-        }
-        failure {
-            echo 'Pipeline falló: revisa reports/junit.xml y la consola.'
-        }
-    }
+    
 }

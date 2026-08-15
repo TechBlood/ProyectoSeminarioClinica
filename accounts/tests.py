@@ -32,3 +32,15 @@ class LoginViewTests(TestCase):
             data={'username': 'recepcionista1', 'password': 'wrongpassword'},
         )
         self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+    def test_login_with_empty_credentials_does_not_authenticate(self):
+         response = self.client.post(
+        reverse('login'),
+        data={
+            'username': '',
+            'password': '',
+        },
+    )
+
+         self.assertEqual(response.status_code, 200)
+         self.assertFalse(response.wsgi_request.user.is_authenticated)

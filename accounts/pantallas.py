@@ -10,6 +10,8 @@ from .models import Usuario
 PANTALLAS_POR_ROL = {
     Usuario.ROL_ADMINISTRADOR: [
         {'nombre': 'Crear usuario', 'url_name': 'crear_usuario'},
+        {'nombre': 'Crear estudio', 'url_name': 'crear_estudio'},
+        {'nombre': 'Bitácora del sistema', 'url_name': 'bitacora'},
     ],
     Usuario.ROL_RECEPCIONISTA: [
         {
@@ -17,14 +19,26 @@ PANTALLAS_POR_ROL = {
             'clave': 'coex',
             'submenu': [
                 {'nombre': 'Agendar cita', 'url_name': 'calendario_coex'},
-                {'nombre': 'Procesar cita', 'clave': 'coex_procesar_cita'},
+                {'nombre': 'Procesar cita', 'url_name': 'procesar_citas_coex'},
             ],
         },
         {'nombre': 'PRIVADO', 'clave': 'privado'},
-        {'nombre': 'EMERGENCIA IGSS', 'clave': 'emergencia_igss'},
+        {
+            'nombre': 'EMERGENCIA IGSS',
+            'clave': 'emergencia_igss',
+            'submenu': [
+                {'nombre': 'Registrar Ticket', 'url_name': 'registrar_ticket_emergencia'},
+                {'nombre': 'Pantalla de turnos', 'url_name': 'pantalla_turnos_emergencia'},
+            ],
+        },
     ],
-    Usuario.ROL_TECNICO_IMAGENES: [],
-    Usuario.ROL_MEDICO_RADIOLOGO: [],
+    Usuario.ROL_TECNICO_IMAGENES: [
+        {'nombre': 'Órdenes pendientes', 'url_name': 'ordenes_pendientes'},
+    ],
+    Usuario.ROL_MEDICO_RADIOLOGO: [
+        {'nombre': 'Solicitudes de citas', 'url_name': 'solicitudes_pendientes'},
+        {'nombre': 'Citas procesadas', 'url_name': 'citas_procesadas'},
+    ],
     Usuario.ROL_MEDICO_REMITENTE: [],
 }
 

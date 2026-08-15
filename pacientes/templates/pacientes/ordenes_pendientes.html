@@ -66,9 +66,20 @@
             color: #64748b;
             font-size: 0.9rem;
         }
+        .btn-imagenes {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: 6px;
+            margin-top: 0.5rem;
+        }
     </style>
 </head>
 <body>
+{% include 'includes/notificaciones.html' %}
     <div class="topbar">
         <h1>Órdenes pendientes</h1>
         <a class="volver" href="{% url 'dashboard' %}">&larr; Volver al panel</a>
@@ -88,6 +99,7 @@
                     Cita: {{ orden.cita.fecha }} {{ orden.cita.hora|time:'H:i' }}
                 </div>
                 <div class="motivo">{{ orden.motivo }}</div>
+                <a class="btn-imagenes" href="{% url 'adjuntar_imagenes' orden_id=orden.id %}">Adjuntar imágenes</a>
             </div>
         {% endfor %}
     {% else %}

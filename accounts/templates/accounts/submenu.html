@@ -52,6 +52,7 @@
     </style>
 </head>
 <body>
+{% include 'includes/notificaciones.html' %}
     <div class="topbar">
         <h1>{{ user.get_rol_display }} — {{ pantalla.nombre }}</h1>
         <a class="volver" href="{% url 'dashboard' %}">Regresar</a>

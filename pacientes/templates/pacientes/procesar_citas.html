@@ -81,6 +81,12 @@
         .estado-en_proceso { background: #ddd6fe; color: #4c1d95; }
         .estado-procesada { background: #bbf7d0; color: #14532d; }
         .estado-ausente { background: #fecaca; color: #7f1d1d; }
+        .estado-rechazada { background: #fed7aa; color: #7c2d12; }
+        .motivo-rechazo {
+            display: block;
+            font-size: 0.75rem;
+            color: #7c2d12;
+        }
         .acciones {
             display: flex;
             gap: 0.4rem;
@@ -122,6 +128,7 @@
     </style>
 </head>
 <body>
+{% include 'includes/notificaciones.html' %}
     <div class="topbar">
         <h1>Procesar cita — {{ convenio_nombre }}</h1>
         <a class="volver" href="{% url 'dashboard' %}">&larr; Volver al panel</a>
@@ -163,10 +170,12 @@
                                     {% csrf_token %}
                                     <button class="btn-llegada" type="submit">Llegó</button>
                                 </form>
+                                {% if fecha == hoy %}
                                 <form method="post" action="{% url marcar_ausente_url_name cita_id=cita.id %}">
                                     {% csrf_token %}
                                     <button class="btn-ausente" type="submit">Ausente</button>
                                 </form>
+                                {% endif %}
                             </div>
                             {% if cita.esta_tarde %}
                                 <span class="alerta-tarde">⚠ +15 min tarde, considera marcar ausente</span>
@@ -182,6 +191,8 @@
                             <div class="acciones">
                                 <a class="btn-reagendar" href="{% url calendario_url_name %}?reagendar={{ cita.id }}">Reagendar</a>
                             </div>
+                        {% elif cita.estado == 'rechazada' %}
+                            <span class="motivo-rechazo">Motivo: {{ cita.motivo_rechazo|default:"—" }}</span>
                         {% else %}
                             —
                         {% endif %}

@@ -41,3 +41,33 @@ class AccountsConfig(AppConfig):
             dispatch_uid='django.contrib.auth.management.create_permissions',
         )
         post_migrate.disconnect(create_contenttypes)
+
+        # Bitácora: registra cada inicio de sesión (exitoso o fallido) sin
+        # tener que reemplazar la LoginView genérica que ya se usa en
+        # accounts/urls.py.
+        from django.contrib.auth.signals import user_logged_in, user_login_failed
+
+        from .models import Bitacora, Usuario
+
+        def _registrar_login_exitoso(sender, request, user, **kwargs):
+            Bitacora.registrar(
+                request=request,
+                usuario=user,
+                username_intento=user.username,
+                accion=Bitacora.ACCION_LOGIN_EXITOSO,
+                descripcion=f'Inicio de sesión de "{user.username}".',
+            )
+
+        def _registrar_login_fallido(sender, credentials, request=None, **kwargs):
+            username = credentials.get('username', '') or ''
+            usuario = Usuario.objects.filter(username=username).first()
+            Bitacora.registrar(
+                request=request,
+                usuario=usuario,
+                username_intento=username,
+                accion=Bitacora.ACCION_LOGIN_FALLIDO,
+                descripcion=f'Intento de inicio de sesión fallido para "{username}".',
+            )
+
+        user_logged_in.connect(_registrar_login_exitoso, dispatch_uid='bitacora_login_exitoso')
+        user_login_failed.connect(_registrar_login_fallido, dispatch_uid='bitacora_login_fallido')

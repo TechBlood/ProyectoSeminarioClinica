@@ -8,5 +8,6 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('usuarios/nuevo/', views.crear_usuario, name='crear_usuario'),
+    path('bitacora/', views.bitacora, name='bitacora'),
     path('pantalla/<slug:clave>/', views.pantalla_placeholder, name='pantalla_placeholder'),
 ]

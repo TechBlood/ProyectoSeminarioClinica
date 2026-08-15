@@ -72,15 +72,72 @@
         button:hover {
             background: #1d4ed8;
         }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-overlay.abierto {
+            display: flex;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            max-width: 480px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+        .modal-card h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            color: #0f172a;
+        }
+        .modal-card p.ayuda {
+            margin-top: -0.5rem;
+        }
+        .modal-resumen dt {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.6rem;
+        }
+        .modal-resumen dd {
+            font-size: 0.9rem;
+            color: #0f172a;
+            margin: 0.1rem 0 0;
+        }
+        .modal-botones {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        .modal-botones button {
+            margin-top: 0;
+            flex: 1;
+        }
+        .btn-editar {
+            background: #e2e8f0 !important;
+            color: #334155 !important;
+        }
+        .btn-editar:hover {
+            background: #cbd5e1 !important;
+        }
     </style>
 </head>
 <body>
+{% include 'includes/notificaciones.html' %}
     <div class="topbar">
         <h1>Crear usuario</h1>
         <a class="volver" href="{% url 'dashboard' %}">&larr; Volver al panel</a>
     </div>
     <div class="card">
-        <form method="post">
+        <form method="post" id="form-crear-usuario">
             {% csrf_token %}
             {{ form.non_field_errors }}
 
@@ -104,6 +161,23 @@
             {{ form.rol }}
             {{ form.rol.errors }}
 
+            <p class="ayuda">
+                Los porcentajes de comisión solo aplican a técnicos de imágenes,
+                médicos radiólogos y médicos remitentes. Para otros roles, déjalos en 0.
+            </p>
+
+            <label for="{{ form.porcentaje_coex.id_for_label }}">% comisión COEX</label>
+            {{ form.porcentaje_coex }}
+            {{ form.porcentaje_coex.errors }}
+
+            <label for="{{ form.porcentaje_privado.id_for_label }}">% comisión Privado</label>
+            {{ form.porcentaje_privado }}
+            {{ form.porcentaje_privado.errors }}
+
+            <label for="{{ form.porcentaje_emergencia_igss.id_for_label }}">% comisión Emergencia IGSS</label>
+            {{ form.porcentaje_emergencia_igss }}
+            {{ form.porcentaje_emergencia_igss.errors }}
+
             <label for="{{ form.password1.id_for_label }}">Contraseña</label>
             {{ form.password1 }}
             {{ form.password1.errors }}
@@ -115,5 +189,63 @@
             <button type="submit">Crear usuario</button>
         </form>
     </div>
+
+    <div class="modal-overlay" id="modal-confirmar">
+        <div class="modal-card">
+            <h2>Verificá los datos antes de crear el usuario</h2>
+            <dl class="modal-resumen" id="modal-resumen"></dl>
+            <div class="modal-botones">
+                <button type="button" class="btn-editar" id="btn-editar">Editar</button>
+                <button type="button" id="btn-confirmar">Confirmar y crear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            var form = document.getElementById('form-crear-usuario');
+            var modal = document.getElementById('modal-confirmar');
+            var resumen = document.getElementById('modal-resumen');
+
+            var campos = [
+                ['id_username', 'Usuario'],
+                ['id_first_name', 'Nombres'],
+                ['id_last_name', 'Apellidos'],
+                ['id_email', 'Correo'],
+                ['id_rol', 'Rol'],
+                ['id_porcentaje_coex', '% comisión COEX'],
+                ['id_porcentaje_privado', '% comisión Privado'],
+                ['id_porcentaje_emergencia_igss', '% comisión Emergencia IGSS'],
+            ];
+
+            form.addEventListener('submit', function (evento) {
+                evento.preventDefault();
+                resumen.innerHTML = '';
+                campos.forEach(function (campo) {
+                    var elemento = document.getElementById(campo[0]);
+                    if (!elemento) {
+                        return;
+                    }
+                    var valor = elemento.tagName === 'SELECT'
+                        ? elemento.options[elemento.selectedIndex].text
+                        : elemento.value;
+                    var dt = document.createElement('dt');
+                    dt.textContent = campo[1];
+                    var dd = document.createElement('dd');
+                    dd.textContent = valor || '—';
+                    resumen.appendChild(dt);
+                    resumen.appendChild(dd);
+                });
+                modal.classList.add('abierto');
+            });
+
+            document.getElementById('btn-editar').addEventListener('click', function () {
+                modal.classList.remove('abierto');
+            });
+            document.getElementById('btn-confirmar').addEventListener('click', function () {
+                form.submit();
+            });
+        })();
+    </script>
 </body>
 </html>

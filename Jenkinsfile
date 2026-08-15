@@ -11,7 +11,11 @@
  *
  * Requisitos en el agente de Jenkins (Windows, sin Docker):
  *   - Python 3.11+ con el módulo venv, accesible como `python` en el PATH
- *     de la cuenta que corre el servicio de Jenkins.
+ *     del sistema (no solo del usuario): el servicio de Jenkins corre
+ *     como LocalSystem, que no ve instalaciones de Python hechas "solo
+ *     para mi usuario". Agrega la carpeta de instalación y su \Scripts
+ *     al PATH de sistema (Variables de entorno > Sistema > Path) y
+ *     reinicia el servicio de Jenkins.
  *   - Un servidor MySQL alcanzable en 127.0.0.1:3306 (en este agente: el
  *     servicio "MySQL80" ya instalado). El usuario debe tener privilegios
  *     CREATE/DROP DATABASE, porque Django crea y destruye la base
@@ -112,10 +116,21 @@ pipeline {
             archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
 
             // Requiere el plugin "Cobertura"; si usas el plugin "Coverage"
-            // moderno, sustituye por: recordCoverage(...)
+            // moderno, sustituye por: recordCoverage(...). Si el plugin no
+            // está instalado, el paso "cobertura" ni siquiera existe como
+            // método DSL y tira un NoSuchMethodError (que es un
+            // java.lang.Error, no una Exception: un try/catch normal de
+            // Groovy NO lo atrapa porque "catch (e)" sin tipo solo captura
+            // Exception). Por eso se usa el step nativo "catchError" de
+            // Jenkins, que sí intercepta cualquier Throwable a nivel de
+            // step; con buildResult/stageResult en null, el error solo se
+            // imprime en el log y no afecta el resultado del build.
             script {
                 if (fileExists('reports/coverage.xml')) {
-                    cobertura coberturaReportFile: 'reports/coverage.xml'
+                    catchError(buildResult: null, stageResult: null,
+                               message: "Plugin 'Cobertura' no instalado en este Jenkins; se omite la publicación de cobertura.") {
+                        cobertura coberturaReportFile: 'reports/coverage.xml'
+                    }
                 }
             }
 

@@ -1,45 +1,75 @@
+
 pipeline {
     agent any
 
     options {
-        skipDefaultCheckout()
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
     environment {
-        PYTHONUNBUFFERED = '1'
-        DJANGO_SETTINGS_MODULE = 'clinica.settings'
-        DJANGO_USE_SQLITE = '1'
+        
+        MYSQL_CRED_ID = 'mysql-root-password'
+
+        DJANGO_SETTINGS_MODULE = 'clinica.settings_test'
+
+       
+        DB_NAME     = 'clinica_imagenes_ci'
+        DB_USER     = 'root'
+        DB_PASSWORD = credentials("${MYSQL_CRED_ID}")
+        DB_HOST     = '127.0.0.1'
+        DB_PORT     = '3306'
+
+        SECRET_KEY = 'clave-temporal-solo-para-pruebas-de-ci'
+        DEBUG      = 'False'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Prepare Python') {
+        stage('Preparar entorno Python') {
             steps {
                 bat '''
-                python -m venv .venv
-                ".venv\\Scripts\\python.exe" -m pip install --upgrade pip setuptools wheel
-                ".venv\\Scripts\\python.exe" -m pip install -r requirements.txt
+                    python -m venv .venv-ci
+                    call .venv-ci\\Scripts\\activate.bat
+                    python -m pip install --upgrade pip
+                    pip install -r requirements-dev.txt
                 '''
             }
         }
 
-        stage('Apply Migrations') {
+        stage('Lint (flake8)') {
             steps {
-                bat '''
-                ".venv\\Scripts\\python.exe" manage.py migrate --noinput
-                '''
+                catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    bat '''
+                        call .venv-ci\\Scripts\\activate.bat
+                        flake8 . --output-file=flake8-report.txt
+                    '''
+                }
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'flake8-report.txt', allowEmptyArchive: true
+                }
             }
         }
 
-        stage('Run Login Tests') {
+        stage('Migraciones y pruebas') {
             steps {
                 bat '''
-                ".venv\\Scripts\\python.exe" manage.py test accounts.tests.LoginViewTests
+                    call .venv-ci\\Scripts\\activate.bat
+                    if not exist reports mkdir reports
+                    python manage.py check
+                    pytest ^
+                        --junitxml=reports/junit.xml ^
+                        --cov=accounts --cov=pacientes ^
+                       
                 '''
             }
         }
@@ -47,13 +77,32 @@ pipeline {
 
     post {
         always {
-            echo 'Jenkins pipeline finished.'
+            junit testResults: 'reports/junit.xml', allowEmptyResults: true
+            archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+
+         l build.
+            script {
+                if (fileExists('reports/coverage.xml')) {
+                    catchError(buildResult: null, stageResult: null,
+                               message: "Plugin 'Cobertura' no instalado en este Jenkins; se omite la publicación de cobertura.") {
+                        cobertura coberturaReportFile: 'reports/coverage.xml'
+                    }
+                }
+            }
+
+            bat '''
+                if exist .venv-ci rmdir /s /q .venv-ci
+                if exist media_test rmdir /s /q media_test
+            '''
         }
         success {
-            echo 'Login tests passed successfully.'
+            echo 'Pipeline OK: pruebas y lint completados.'
+        }
+        unstable {
+            echo 'Pipeline inestable: revisa el reporte de flake8.'
         }
         failure {
-            echo 'Login tests failed. Review the console output for details.'
+            echo 'Pipeline falló: revisa reports/junit.xml y la consola.'
         }
     }
 }

@@ -123,17 +123,20 @@ pipeline {
             archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
 
             // Requiere el plugin "Cobertura"; si usas el plugin "Coverage"
-            // moderno, sustituye por: recordCoverage(...). Envuelto en
-            // try/catch porque si el plugin no está instalado, el paso
-            // "cobertura" ni siquiera existe como método DSL y tira un
-            // NoSuchMethodError que tumba todo el pipeline; así solo se
-            // omite con un aviso y el build no se ve afectado por esto.
+            // moderno, sustituye por: recordCoverage(...). Si el plugin no
+            // está instalado, el paso "cobertura" ni siquiera existe como
+            // método DSL y tira un NoSuchMethodError (que es un
+            // java.lang.Error, no una Exception: un try/catch normal de
+            // Groovy NO lo atrapa porque "catch (e)" sin tipo solo captura
+            // Exception). Por eso se usa el step nativo "catchError" de
+            // Jenkins, que sí intercepta cualquier Throwable a nivel de
+            // step; con buildResult/stageResult en null, el error solo se
+            // imprime en el log y no afecta el resultado del build.
             script {
                 if (fileExists('reports/coverage.xml')) {
-                    try {
+                    catchError(buildResult: null, stageResult: null,
+                               message: "Plugin 'Cobertura' no instalado en este Jenkins; se omite la publicación de cobertura.") {
                         cobertura coberturaReportFile: 'reports/coverage.xml'
-                    } catch (err) {
-                        echo "Aviso: no se pudo publicar el reporte de cobertura (¿falta el plugin 'Cobertura'?): ${err}"
                     }
                 }
             }

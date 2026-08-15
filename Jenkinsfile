@@ -66,7 +66,7 @@ pipeline {
                     call .venv-ci\\Scripts\\activate.bat
                     if not exist reports mkdir reports
                     python manage.py check
-                    pytest2 ^
+                    pytest ^
                         --junitxml=reports/junit.xml ^
                         --cov=accounts --cov=pacientes ^
                        

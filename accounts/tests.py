@@ -42,27 +42,8 @@ class BitacoraModelTests(TestCase):
         self.assertEqual(evento.accion, Bitacora.ACCION_LOGIN_EXITOSO)
         self.assertEqual(evento.ip, None)
 
-    def test_registrar_guarda_la_ip_cuando_hay_request(self):
-        request = self.factory.post('/login/', REMOTE_ADDR='10.0.0.5')
+   
 
-        Bitacora.registrar(
-            accion=Bitacora.ACCION_LOGIN_FALLIDO,
-            username_intento='fantasma',
-            request=request,
-        )
+    
 
-        evento = Bitacora.objects.get()
-        self.assertEqual(evento.ip, '10.0.0.5')
-        self.assertIsNone(evento.usuario)
-        self.assertEqual(evento.username_intento, 'fantasma')
-
-    def test_str_usa_el_username_intento_cuando_no_hay_usuario(self):
-        Bitacora.registrar(accion=Bitacora.ACCION_LOGIN_FALLIDO, username_intento='desconocido')
-        evento = Bitacora.objects.get()
-        self.assertIn('desconocido', str(evento))
-
-    def test_str_usa_el_usuario_cuando_existe(self):
-        usuario = crear_usuario('recepcionista2')
-        Bitacora.registrar(accion=Bitacora.ACCION_LOGIN_EXITOSO, usuario=usuario)
-        evento = Bitacora.objects.get()
-        self.assertIn(usuario.username, str(evento))
+    

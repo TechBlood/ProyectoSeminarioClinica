@@ -2,20 +2,24 @@
  * Pipeline de CI para el proyecto "Clínica de Imágenes Médicas" (Django).
  *
  * Qué hace:
- *   1. Levanta un MySQL 8 desechable en Docker (no toca la base real del
- *      proyecto; Django crea y destruye sola una base `test_<DB_NAME>`).
- *   2. Crea un virtualenv e instala dependencias (requirements-dev.txt).
- *   3. Corre flake8 (no bloquea el build, lo marca UNSTABLE si hay avisos).
- *   4. Corre las pruebas con pytest + cobertura, contra clinica.settings_test.
- *   5. Publica resultados JUnit y el reporte de cobertura en Jenkins.
+ *   1. Crea un virtualenv e instala dependencias (requirements-dev.txt).
+ *   2. Corre flake8 (no bloquea el build, lo marca UNSTABLE si hay avisos).
+ *   3. Corre las pruebas con pytest + cobertura, contra clinica.settings_test.
+ *      Django crea y destruye sola una base `test_<DB_NAME>` en el MySQL
+ *      del agente (no toca la base real `clinica_imagenes`).
+ *   4. Publica resultados JUnit y el reporte de cobertura en Jenkins.
  *
- * Requisitos en el agente de Jenkins:
- *   - Docker disponible (para el contenedor de MySQL de pruebas).
- *   - Python 3.11+ con el módulo venv.
- *   - Librerías de compilación de mysqlclient: en Debian/Ubuntu
- *     `default-libmysqlclient-dev build-essential pkg-config`
- *     (si el agente ya las tiene, o mysqlclient trae wheel precompilado
- *     para tu plataforma, este paso es un no-op).
+ * Requisitos en el agente de Jenkins (Windows, sin Docker):
+ *   - Python 3.11+ con el módulo venv, accesible como `python` en el PATH
+ *     de la cuenta que corre el servicio de Jenkins.
+ *   - Un servidor MySQL alcanzable en 127.0.0.1:3306 (en este agente: el
+ *     servicio "MySQL80" ya instalado). El usuario debe tener privilegios
+ *     CREATE/DROP DATABASE, porque Django crea y destruye la base
+ *     `test_<DB_NAME>` en cada corrida.
+ *   - Una credencial de Jenkins tipo "Secret text" con la contraseña de
+ *     ese usuario de MySQL, registrada con el ID que tiene MYSQL_CRED_ID
+ *     más abajo. NUNCA pongas la contraseña real en texto plano aquí: este
+ *     archivo se sube a un repo compartido con el equipo.
  *
  * Plugins de Jenkins usados: JUnit, Cobertura (o "Coverage" moderno). Si no
  * los tienes instalados, comenta esas líneas en post{} sin que el resto del
@@ -32,18 +36,19 @@ pipeline {
     }
 
     environment {
-        // Contenedor MySQL de pruebas, aislado del MySQL real del proyecto.
-        MYSQL_TEST_CONTAINER = "clinica-mysql-test-${env.BUILD_NUMBER}"
-        MYSQL_TEST_PORT       = '3307'
+        // ID de la credencial "Secret text" en Jenkins (Manage Jenkins >
+        // Credentials) que guarda la contraseña real del usuario de MySQL.
+        MYSQL_CRED_ID = 'mysql-root-password'
+
         DJANGO_SETTINGS_MODULE = 'clinica.settings_test'
 
-        // Credenciales de la base de datos de pruebas (no son secretas: la
-        // base vive y muere dentro del mismo build).
+        // Base de datos de pruebas: Django crea/destruye "test_<DB_NAME>"
+        // sola en cada corrida; no es necesario crearla a mano.
         DB_NAME     = 'clinica_imagenes_ci'
         DB_USER     = 'root'
-        DB_PASSWORD = 'root_ci_password'
+        DB_PASSWORD = credentials("${MYSQL_CRED_ID}")
         DB_HOST     = '127.0.0.1'
-        DB_PORT     = "${MYSQL_TEST_PORT}"
+        DB_PORT     = '3306'
 
         SECRET_KEY = 'clave-temporal-solo-para-pruebas-de-ci'
         DEBUG      = 'False'
@@ -57,36 +62,12 @@ pipeline {
             }
         }
 
-        stage('Levantar MySQL de pruebas') {
-            steps {
-                sh '''
-                    docker rm -f "$MYSQL_TEST_CONTAINER" >/dev/null 2>&1 || true
-                    docker run -d --name "$MYSQL_TEST_CONTAINER" \
-                        -e MYSQL_ROOT_PASSWORD="$DB_PASSWORD" \
-                        -e MYSQL_DATABASE="$DB_NAME" \
-                        -p "$MYSQL_TEST_PORT":3306 \
-                        mysql:8.0 --default-authentication-plugin=mysql_native_password
-
-                    echo "Esperando a que MySQL acepte conexiones..."
-                    for i in $(seq 1 30); do
-                        if docker exec "$MYSQL_TEST_CONTAINER" mysqladmin ping -uroot -p"$DB_PASSWORD" --silent; then
-                            echo "MySQL listo."
-                            exit 0
-                        fi
-                        sleep 2
-                    done
-                    echo "MySQL no respondió a tiempo." >&2
-                    exit 1
-                '''
-            }
-        }
-
         stage('Preparar entorno Python') {
             steps {
-                sh '''
-                    python3 -m venv .venv-ci
-                    . .venv-ci/bin/activate
-                    pip install --upgrade pip
+                bat '''
+                    python -m venv .venv-ci
+                    call .venv-ci\\Scripts\\activate.bat
+                    python -m pip install --upgrade pip
                     pip install -r requirements-dev.txt
                 '''
             }
@@ -95,8 +76,8 @@ pipeline {
         stage('Lint (flake8)') {
             steps {
                 catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
-                    sh '''
-                        . .venv-ci/bin/activate
+                    bat '''
+                        call .venv-ci\\Scripts\\activate.bat
                         flake8 . --output-file=flake8-report.txt
                     '''
                 }
@@ -110,15 +91,15 @@ pipeline {
 
         stage('Migraciones y pruebas') {
             steps {
-                sh '''
-                    . .venv-ci/bin/activate
-                    mkdir -p reports
+                bat '''
+                    call .venv-ci\\Scripts\\activate.bat
+                    if not exist reports mkdir reports
                     python manage.py check
-                    pytest \
-                        --junitxml=reports/junit.xml \
-                        --cov=accounts --cov=pacientes \
-                        --cov-report=xml:reports/coverage.xml \
-                        --cov-report=html:reports/htmlcov \
+                    pytest ^
+                        --junitxml=reports/junit.xml ^
+                        --cov=accounts --cov=pacientes ^
+                        --cov-report=xml:reports/coverage.xml ^
+                        --cov-report=html:reports/htmlcov ^
                         --cov-report=term-missing
                 '''
             }
@@ -138,9 +119,9 @@ pipeline {
                 }
             }
 
-            sh '''
-                docker rm -f "$MYSQL_TEST_CONTAINER" >/dev/null 2>&1 || true
-                rm -rf .venv-ci media_test
+            bat '''
+                if exist .venv-ci rmdir /s /q .venv-ci
+                if exist media_test rmdir /s /q media_test
             '''
         }
         success {

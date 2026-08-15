@@ -34,6 +34,6 @@ class LoginViewTests(TestCase):
     def test_login_with_invalid_credentials_does_not_authenticate(self):
         response = self.client.post(
             reverse('login'),
-            data={'username': 'recepcionista1', 'password': 'testpass123'},
+            data={'username': 'recepcionista1', 'password': 'wrongpassword'},
         )
         self.assertFalse(response.wsgi_request.user.is_authenticated)

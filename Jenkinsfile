@@ -91,7 +91,7 @@ pipeline {
             }
 
             bat '''
-               
+                if exist .venv-ci rmdir /s /q .venv-ci
                 if exist media_test rmdir /s /q media_test
             '''
         }

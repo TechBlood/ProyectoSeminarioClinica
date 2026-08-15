@@ -13,5 +13,6 @@ urlpatterns = [
     path('pantalla/turnos/', pacientes_views.pantalla_turnos, name='pantalla_turnos'),
     path('pantalla/turnos/json/', pacientes_views.pantalla_turnos_json, name='pantalla_turnos_json'),
     path('pantalla/turnos/actualizar/<int:ticket_id>/', pacientes_views.actualizar_estado_ticket, name='actualizar_estado_ticket'),
+    path('recepcion/check-in/', pacientes_views.check_in_recepcion, name='check_in_recepcion'),
     path('pantalla/<slug:clave>/', views.pantalla_placeholder, name='pantalla_placeholder'),
 ]

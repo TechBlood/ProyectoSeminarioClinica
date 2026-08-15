@@ -17,6 +17,7 @@ from .forms import (
     PacienteForm,
     PacienteSearchForm,
     TicketActualizarForm,
+    CheckInRecepcionForm,
 )
 from .horarios import CUPO_POR_HORA, DIAS_SEMANA, horas_disponibles, inicio_semana
 from .models import CambioCita, Cita, Paciente, Ticket, TicketCambioEstado
@@ -35,6 +36,19 @@ def es_recepcionista_o_admin(user):
     }
 
 
+def crear_ticket_emergencia(paciente, cita, prioridad, estado=Ticket.ESTADO_EN_ESPERA):
+    if not cita or cita.convenio != Cita.CONVENIO_EMERGENCIA_IGSS:
+        return None
+    return Ticket.objects.create(
+        paciente=paciente,
+        cita=cita,
+        servicio=Ticket.SERVICIO_EMERGENCIA,
+        prioridad=prioridad,
+        estado=estado,
+        hora_llegada=timezone.now(),
+    )
+
+
 @login_required
 @user_passes_test(es_recepcionista_o_admin)
 def seleccionar_horario(request, convenio):
@@ -43,6 +57,8 @@ def seleccionar_horario(request, convenio):
     semana_param = parse_date(request.GET.get('semana', ''))
     inicio = inicio_semana(semana_param or datetime.date.today())
     dias = [inicio + datetime.timedelta(days=i) for i in range(len(DIAS_SEMANA))]
+    # inicio_actual representa el inicio de la semana actual para el usuario (no permitir agendar semanas previas)
+    inicio_actual = inicio_semana(datetime.date.today())
 
     conteos = {}
     for cita in Cita.objects.filter(fecha__gte=dias[0], fecha__lte=dias[-1]):
@@ -73,6 +89,7 @@ def seleccionar_horario(request, convenio):
         'cupo': CUPO_POR_HORA,
         'semana_anterior': inicio - datetime.timedelta(days=7),
         'semana_siguiente': inicio + datetime.timedelta(days=7),
+        'inicio_actual': inicio_actual,
     })
 
 
@@ -130,15 +147,10 @@ def agendar_cita(request, convenio):
             notas=cd['notas'],
             creada_por=request.user,
         )
-        Ticket.objects.create(
+        crear_ticket_emergencia(
             paciente=paciente,
             cita=cita,
-            servicio={
-                Cita.CONVENIO_COEX: Ticket.SERVICIO_COEX,
-                Cita.CONVENIO_PRIVADO: Ticket.SERVICIO_PRIVADO,
-                Cita.CONVENIO_EMERGENCIA_IGSS: Ticket.SERVICIO_EMERGENCIA,
-            }.get(convenio, Ticket.SERVICIO_COEX),
-            prioridad=(Ticket.PRIORIDAD_EMERGENCIA if convenio == Cita.CONVENIO_EMERGENCIA_IGSS else Ticket.PRIORIDAD_NORMAL),
+            prioridad=Ticket.PRIORIDAD_EMERGENCIA,
         )
         messages.success(
             request,
@@ -210,7 +222,11 @@ def editar_paciente(request, paciente_id):
             messages.success(request, 'Datos del paciente actualizados.')
             return redirect('buscar_paciente')
     else:
-        form = PacienteForm(instance=paciente)
+        initial = {}
+        if getattr(paciente, 'fecha_nacimiento', None):
+            # ensure date input gets YYYY-MM-DD
+            initial['fecha_nacimiento'] = paciente.fecha_nacimiento.isoformat()
+        form = PacienteForm(instance=paciente, initial=initial)
     return render(request, 'pacientes/editar_paciente.html', {'form': form, 'paciente': paciente})
 
 
@@ -248,6 +264,7 @@ def pantalla_turnos_json(request):
     cola = Ticket.objects.filter(estado=Ticket.ESTADO_EN_ESPERA).order_by('-prioridad', 'hora_llegada')
     datos = [
         {
+            'id': ticket.id,
             'turno': ticket.turno,
             'paciente': str(ticket.paciente) if ticket.paciente else 'Paciente desconocido',
             'servicio': ticket.get_servicio_display(),
@@ -337,3 +354,85 @@ def cancelar_cita(request, cita_id):
     else:
         form = CancelarCitaForm()
     return render(request, 'pacientes/cancelar_cita.html', {'form': form, 'cita': cita})
+
+
+# HU-023: Registro de llegada y atención inicial de paciente (Check-in en recepción)
+@login_required
+@user_passes_test(es_recepcionista_o_admin)
+def check_in_recepcion(request):
+    """Módulo de recepción para registrar llegada de paciente y crear/actualizar ticket"""
+    paciente_encontrado = None
+    tickets_paciente = []
+    
+    if request.method == 'POST':
+        form = CheckInRecepcionForm(request.POST)
+        if form.is_valid():
+            criterio = form.cleaned_data['criterio_busqueda'].strip()
+            prioridad = int(form.cleaned_data.get('prioridad', Ticket.PRIORIDAD_NORMAL))
+            
+            # Buscar paciente por DPI, expediente o nombre
+            paciente = Paciente.objects.filter(
+                Q(dpi__iexact=criterio) |
+                Q(expediente__iexact=criterio) |
+                Q(nombre__icontains=criterio)
+            ).first()
+            
+            if paciente:
+                paciente_encontrado = paciente
+                # Obtener tickets activos del paciente
+                tickets_paciente = Ticket.objects.filter(
+                    paciente=paciente,
+                    estado=Ticket.ESTADO_EN_ESPERA
+                ).order_by('-prioridad', 'hora_llegada')
+                
+                # Si no hay ticket en espera, crear uno nuevo
+                if not tickets_paciente.exists():
+                    cita = Cita.objects.filter(
+                        paciente=paciente,
+                        estado=Cita.ESTADO_AGENDADA,
+                        fecha__gte=timezone.now().date()
+                    ).first()
+
+                    ticket = crear_ticket_emergencia(
+                        paciente=paciente,
+                        cita=cita,
+                        prioridad=prioridad,
+                    )
+
+                    if ticket:
+                        messages.success(
+                            request,
+                            f'Paciente {paciente.nombre} {paciente.apellido} registrado en recepción. Ticket: {ticket.turno}'
+                        )
+                        tickets_paciente = [ticket]
+                    else:
+                        messages.info(request, 'No se generó ticket porque la cita no corresponde a Emergencia IGSS.')
+                else:
+                    # Actualizar prioridad del ticket existente si cambió
+                    ticket_actual = tickets_paciente.first()
+                    if ticket_actual.prioridad != prioridad:
+                        ticket_anterior = ticket_actual.prioridad
+                        ticket_actual.prioridad = prioridad
+                        ticket_actual.save()
+                        TicketCambioEstado.objects.create(
+                            ticket=ticket_actual,
+                            estado_anterior=ticket_actual.estado,
+                            estado_nuevo=ticket_actual.estado,
+                            prioridad_anterior=ticket_anterior,
+                            prioridad_nueva=prioridad,
+                            razon='Ajuste de prioridad en recepción',
+                            usuario=request.user,
+                        )
+                        messages.info(request, f'Prioridad actualizada a {ticket_actual.get_prioridad_display()}')
+                    else:
+                        messages.info(request, 'Paciente ya registrado en recepción.')
+            else:
+                messages.error(request, 'No se encontró paciente con ese criterio de búsqueda.')
+    else:
+        form = CheckInRecepcionForm()
+    
+    return render(request, 'pacientes/check_in_recepcion.html', {
+        'form': form,
+        'paciente_encontrado': paciente_encontrado,
+        'tickets_paciente': tickets_paciente,
+    })

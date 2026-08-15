@@ -3,52 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <title>Pantalla de turnos</title>
+
     <style>
-        body{font-family:Arial,sans-serif;background:#f8fafc;padding:2rem}
-        .topbar{display:flex;justify-content:space-between;align-items:center;max-width:1000px;margin:0 auto 1rem}
-        .topbar h1{margin:0;font-size:1.35rem;color:#0f172a}
-        a.volver{color:#2563eb;text-decoration:none;font-weight:600}
-        .card{background:#fff;padding:1.5rem;border-radius:12px;max-width:1000px;margin:0 auto;box-shadow:0 6px 20px rgba(15,23,42,0.08)}
-        .summary{padding:1rem;border-radius:10px;background:#eef2ff;border:1px solid #c7d2fe;margin-bottom:1rem;color:#1e3a8a}
-        .messages{margin-bottom:1rem}
-        .message{padding:0.75rem 1rem;border-radius:8px;margin-bottom:0.75rem}
-        .message.success{background:#dcfce7;color:#166534}
-        .message.error{background:#fee2e2;color:#991b1b}
-        table{width:100%;border-collapse:collapse;margin-top:1rem}
-        th,td{padding:0.85rem;border:1px solid #e2e8f0;text-align:left}
-        th{background:#0f172a;color:white}
-        tr:hover td{background:#f8fafc}
-        .action{color:#2563eb;text-decoration:none;font-weight:600}
-        .empty{padding:1rem;background:#f1f5f9;border:1px solid #dbeafe;border-radius:8px}
-        .badge{display:inline-block;padding:0.25rem 0.6rem;border-radius:999px;font-size:0.8rem;color:white}
-        .badge.priority-3{background:#dc2626}
-        .badge.priority-2{background:#f59e0b}
-        .badge.priority-1{background:#2563eb}
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8fafc;
+            padding: 2rem;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1000px;
+            margin: 0 auto 1rem;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 1.35rem;
+            color: #0f172a;
+        }
+
+        a.volver {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .card {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 12px;
+            max-width: 1000px;
+            margin: 0 auto;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+        }
+
+        .summary {
+            padding: 1rem;
+            border-radius: 10px;
+            background: #eef2ff;
+            border: 1px solid #c7d2fe;
+            margin-bottom: 1rem;
+            color: #1e3a8a;
+        }
+
+        .messages {
+            margin-bottom: 1rem;
+        }
+
+        .message {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+        }
+
+        .message.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            padding: 0.85rem;
+            border: 1px solid #e2e8f0;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #0f172a;
+            color: white;
+        }
+
+        tr:hover td {
+            background: #f8fafc;
+        }
+
+        .action {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .empty {
+            padding: 1rem;
+            background: #f1f5f9;
+            border: 1px solid #dbeafe;
+            border-radius: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            color: white;
+        }
+
+        .badge.priority-3 {
+            background: #dc2626;
+        }
+
+        .badge.priority-2 {
+            background: #f59e0b;
+        }
+
+        .badge.priority-1 {
+            background: #2563eb;
+        }
+
+        .patient-name {
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .patient-missing {
+            font-weight: 700;
+            color: #b45309;
+        }
+
+        .patient-dpi {
+            color: #475569;
+            font-size: 0.85rem;
+        }
     </style>
 </head>
+
 <body>
     <div class="topbar">
         <h1>Pantalla de turnos</h1>
-        <a class="volver" href="{% url 'pantalla_placeholder' 'coex' %}">&larr; Volver a COEX</a>
+
+        <a class="volver"
+           href="{% url 'pantalla_placeholder' 'coex' %}">
+            &larr; Volver a COEX
+        </a>
     </div>
+
     <div class="card">
+
         {% if messages %}
             <div class="messages">
                 {% for message in messages %}
-                    <div class="message {{ message.tags }}">{{ message }}</div>
+                    <div class="message {{ message.tags }}">
+                        {{ message }}
+                    </div>
                 {% endfor %}
             </div>
         {% endif %}
+
         {% if siguiente %}
             <div class="summary">
-                <strong>Siguiente:</strong> {{ siguiente.turno }} — {{ siguiente.paciente }}
-                <span class="badge priority-{{ siguiente.prioridad }}">{{ siguiente.get_prioridad_display }}</span>
+                <strong>Siguiente:</strong>
+                {{ siguiente.turno }} —
+
+                {% if siguiente.paciente.nombre or siguiente.paciente.apellido %}
+                    <span class="patient-name">
+                        {{ siguiente.paciente.nombre|default:"" }}
+                        {{ siguiente.paciente.apellido|default:"" }}
+                    </span>
+                {% else %}
+                    <span class="patient-missing">
+                        Paciente de emergencia
+                    </span>
+                {% endif %}
+
+                <span class="badge priority-{{ siguiente.prioridad }}">
+                    {{ siguiente.get_prioridad_display }}
+                </span>
+
                 <br>
+
+                <span class="patient-dpi">
+                    DPI: {{ siguiente.paciente.dpi|default:"No registrado" }}
+                </span>
+
+                <br>
+
                 Servicio: {{ siguiente.get_servicio_display }}
             </div>
         {% else %}
-            <div class="summary">No hay turnos en cola en este momento.</div>
+            <div class="summary">
+                No hay turnos en cola en este momento.
+            </div>
         {% endif %}
+
         {% if cola %}
             <table>
                 <thead>
@@ -62,46 +213,161 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
+
                 <tbody id="queue-body">
                     {% for ticket in cola %}
                         <tr>
                             <td>{{ ticket.turno }}</td>
-                            <td>{{ ticket.paciente }}</td>
-                            <td>{{ ticket.get_servicio_display }}</td>
-                            <td><span class="badge priority-{{ ticket.prioridad }}">{{ ticket.get_prioridad_display }}</span></td>
-                            <td>{{ ticket.hora_llegada }}</td>
-                            <td>{{ ticket.get_estado_display }}</td>
-                            <td><a class="action" href="{% url 'actualizar_estado_ticket' ticket.id %}">Actualizar</a></td>
+
+                            <td>
+                                {% if ticket.paciente.nombre or ticket.paciente.apellido %}
+                                    <div class="patient-name">
+                                        {{ ticket.paciente.nombre|default:"" }}
+                                        {{ ticket.paciente.apellido|default:"" }}
+                                    </div>
+                                {% else %}
+                                    <div class="patient-missing">
+                                        Paciente de emergencia
+                                    </div>
+                                {% endif %}
+
+                                <div class="patient-dpi">
+                                    DPI: {{ ticket.paciente.dpi|default:"No registrado" }}
+                                </div>
+                            </td>
+
+                            <td>
+                                {{ ticket.get_servicio_display }}
+                            </td>
+
+                            <td>
+                                <span class="badge priority-{{ ticket.prioridad }}">
+                                    {{ ticket.get_prioridad_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {{ ticket.hora_llegada|default:"-" }}
+                            </td>
+
+                            <td>
+                                {{ ticket.get_estado_display }}
+                            </td>
+
+                            <td>
+                                <a class="action"
+                                   href="{% url 'actualizar_estado_ticket' ticket.id %}">
+                                    Actualizar
+                                </a>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         {% else %}
-            <div class="empty">La cola de turnos está vacía.</div>
+            <div class="empty">
+                La cola de turnos está vacía.
+            </div>
         {% endif %}
     </div>
+
     <script>
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value ?? '';
+            return div.innerHTML;
+        }
+
+        function renderPatient(ticket) {
+            const nombre = (ticket.nombre || '').trim();
+            const apellido = (ticket.apellido || '').trim();
+            const dpi = ticket.dpi || 'No registrado';
+
+            let patientHtml = '';
+
+            if (nombre || apellido) {
+                patientHtml = `
+                    <div class="patient-name">
+                        ${escapeHtml(`${nombre} ${apellido}`.trim())}
+                    </div>
+                `;
+            } else {
+                patientHtml = `
+                    <div class="patient-missing">
+                        Paciente de emergencia
+                    </div>
+                `;
+            }
+
+            patientHtml += `
+                <div class="patient-dpi">
+                    DPI: ${escapeHtml(dpi)}
+                </div>
+            `;
+
+            return patientHtml;
+        }
+
         function fetchQueue() {
             fetch('{% url "pantalla_turnos_json" %}')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('No se pudo actualizar la cola.');
+                    }
+
+                    return response.json();
+                })
                 .then(data => {
                     const body = document.getElementById('queue-body');
-                    if (!body) return;
+
+                    if (!body) {
+                        return;
+                    }
+
                     body.innerHTML = '';
+
                     data.cola.forEach(ticket => {
                         const tr = document.createElement('tr');
-                        const updateUrl = `/pantalla/turnos/actualizar/${ticket.id}/`;
+                        const updateUrl =
+                            `/pantalla/turnos/actualizar/${ticket.id}/`;
+
                         tr.innerHTML = `
-                            <td>${ticket.turno}</td>
-                            <td>${ticket.paciente}</td>
-                            <td>${ticket.servicio}</td>
-                            <td>${ticket.prioridad}</td>
-                            <td>${ticket.hora_llegada || '-'} </td>
-                            <td>En Espera</td>
-                            <td><a class="action" href="${updateUrl}">Actualizar</a></td>
+                            <td>${escapeHtml(ticket.turno)}</td>
+
+                            <td>
+                                ${renderPatient(ticket)}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(ticket.servicio)}
+                            </td>
+
+                            <td>
+                                <span class="badge priority-${escapeHtml(ticket.prioridad_valor || 1)}">
+                                    ${escapeHtml(ticket.prioridad)}
+                                </span>
+                            </td>
+
+                            <td>
+                                ${escapeHtml(ticket.hora_llegada || '-')}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(ticket.estado || 'En espera')}
+                            </td>
+
+                            <td>
+                                <a class="action" href="${updateUrl}">
+                                    Actualizar
+                                </a>
+                            </td>
                         `;
+
                         body.appendChild(tr);
                     });
+                })
+                .catch(error => {
+                    console.error(error);
                 });
         }
 

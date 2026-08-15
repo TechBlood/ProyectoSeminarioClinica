@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.dateparse import parse_date
 
 from accounts.models import Usuario
@@ -253,18 +254,63 @@ def pantalla_turnos(request):
 @login_required
 @user_passes_test(es_recepcionista_o_admin)
 def pantalla_turnos_json(request):
-    cola = Ticket.objects.filter(estado=Ticket.ESTADO_EN_ESPERA).order_by('-prioridad', 'hora_llegada')
+    cola = (
+        Ticket.objects
+        .filter(estado=Ticket.ESTADO_EN_ESPERA)
+        .select_related('paciente')
+        .order_by('-prioridad', 'hora_llegada')
+    )
+
     datos = [
         {
             'id': ticket.id,
             'turno': ticket.turno,
-            'paciente': str(ticket.paciente) if ticket.paciente else 'Paciente desconocido',
+
+            'paciente': (
+                str(ticket.paciente)
+                if ticket.paciente
+                else 'Paciente desconocido'
+            ),
+
+            'nombre': (
+                ticket.paciente.nombre or ''
+                if ticket.paciente
+                else ''
+            ),
+
+            'apellido': (
+                ticket.paciente.apellido or ''
+                if ticket.paciente
+                else ''
+            ),
+
+            'dpi': (
+                ticket.paciente.dpi or ''
+                if ticket.paciente
+                else ''
+            ),
+
             'servicio': ticket.get_servicio_display(),
+
             'prioridad': ticket.get_prioridad_display(),
-            'hora_llegada': ticket.hora_llegada.isoformat() if ticket.hora_llegada else None,
+
+            'prioridad_valor': ticket.prioridad,
+
+            'hora_llegada': (
+                date_format(
+                    timezone.localtime(ticket.hora_llegada),
+                    'j \\d\\e F \\d\\e Y \\a \\l\\a\\s H:i',
+                    use_l10n=True
+        )
+        if ticket.hora_llegada
+        else ''
+    ),
+
+            'estado': ticket.get_estado_display(),
         }
         for ticket in cola
     ]
+
     return JsonResponse({'cola': datos})
 
 

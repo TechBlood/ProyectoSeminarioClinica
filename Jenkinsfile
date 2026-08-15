@@ -21,20 +21,18 @@ pipeline {
         stage('Prepare Python') {
             steps {
                 bat '''
-                echo --- Python launcher version ---
-                py -3 --version || (echo "py launcher not found" & exit /b 1)
+                @echo off
+                echo --- Checking Python 3.12 Installation ---
+                "C:\\Users\\Marilin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" --version || (echo "Python not found at specified path" & exit /b 1)
 
                 echo --- Create virtualenv (.venv) ---
-                py -3 -m venv .venv
-
-                echo --- Activate virtualenv and install deps ---
-                call .venv\\Scripts\\activate
+                "C:\\Users\\Marilin\\AppData\\Local\\Programs\\Python\\Python312\\python.exe" -m venv .venv
 
                 echo --- Upgrade pip ---
-                .venv\\Scripts\\python.exe -m pip install --upgrade pip setuptools wheel
+                ".venv\\Scripts\\python.exe" -m pip install --upgrade pip setuptools wheel
 
                 echo --- Install requirements ---
-                .venv\\Scripts\\python.exe -m pip install -r requirements.txt
+                ".venv\\Scripts\\python.exe" -m pip install -r requirements.txt
                 '''
             }
         }
@@ -42,9 +40,9 @@ pipeline {
         stage('Apply Migrations') {
             steps {
                 bat '''
-                call .venv\\Scripts\\activate
+                @echo off
                 set DJANGO_USE_SQLITE=1
-                .venv\\Scripts\\python.exe manage.py migrate --noinput
+                ".venv\\Scripts\\python.exe" manage.py migrate --noinput
                 '''
             }
         }
@@ -52,9 +50,9 @@ pipeline {
         stage('Run Login Tests') {
             steps {
                 bat '''
-                call .venv\\Scripts\\activate
+                @echo off
                 set DJANGO_USE_SQLITE=1
-                .venv\\Scripts\\python.exe manage.py test accounts.tests.LoginViewTests
+                ".venv\\Scripts\\python.exe" manage.py test accounts.tests.LoginViewTests
                 '''
             }
         }

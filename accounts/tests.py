@@ -20,8 +20,6 @@ class UsuarioModelTests(TestCase):
         usuario = crear_usuario('tecnico3', rol=Usuario.ROL_TECNICO_IMAGENES)
         self.assertEqual(usuario.rol, Usuario.ROL_TECNICO_IMAGENES)
 
-   
-
 
 class BitacoraModelTests(TestCase):
 

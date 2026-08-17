@@ -200,7 +200,7 @@ class HorariosTests(TestCase):
         self.assertTrue(horarios.fuera_de_ventana(fecha))
 
 
-class TicketModelTests(TestCase):
+
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_tickets')
@@ -248,7 +248,7 @@ class TicketModelTests(TestCase):
         self.assertEqual(ticket.turno, turno_original)
 
 
-class RegistrarTicketEmergenciaViewTests(TestCase):
+
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_view', rol=Usuario.ROL_RECEPCIONISTA)
@@ -303,7 +303,7 @@ class RegistrarTicketEmergenciaViewTests(TestCase):
         self.assertEqual(Ticket.objects.count(), 0)
 
 
-class BuscarPacientePorDpiViewTests(TestCase):
+
     """Endpoint que usan Agendar cita y Registrar Ticket para autocompletar
     los datos del paciente por DPI, en vez de volver a escribirlos."""
 
@@ -386,7 +386,6 @@ class AgendarCitaViewTests(TestCase):
         self.assertEqual(paciente.telefono, '55599999')
 
 
-class PantallaTurnosEmergenciaViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_turnos', rol=Usuario.ROL_RECEPCIONISTA)
@@ -411,7 +410,7 @@ class PantallaTurnosEmergenciaViewTests(TestCase):
         self.assertNotIn(ticket_atendido, cola)
 
 
-class ProcesarTicketEmergenciaViewTests(TestCase):
+
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_procesar', rol=Usuario.ROL_RECEPCIONISTA)
@@ -542,7 +541,7 @@ class FechaNacimientoNoFuturaTests(TestCase):
         self.assertTrue(form.is_valid())
 
 
-class NotificacionesTests(TestCase):
+
     """HU: cada hand-off del flujo (cita asignada, orden pendiente, estudio
     listo para informar, estudio completado) genera una Notificacion para
     quien tiene que actuar, que la campanita del navegador usa para avisar
@@ -670,7 +669,6 @@ class NotificacionesTests(TestCase):
         )
 
 
-class NotificacionesPendientesViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('usuario_notif_api', rol=Usuario.ROL_TECNICO_IMAGENES)

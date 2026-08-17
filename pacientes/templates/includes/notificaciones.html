@@ -137,6 +137,10 @@
     var URL_MARCAR_UNA_PLANTILLA = '{% url "marcar_notificacion_leida" notificacion_id=0 %}';
     var URL_MARCAR_TODAS = '{% url "marcar_notificaciones_leidas" %}';
     var INTERVALO_MS = 20000;
+    // Este tipo no se marca como leído con el simple clic: se queda en la
+    // lista hasta que el dato pendiente del paciente realmente se completa
+    // (ver pacientes.views.completar_datos_paciente).
+    var TIPOS_QUE_NO_SE_MARCAN_AL_HACER_CLIC = ['datos_paciente_pendientes'];
 
     var boton = document.getElementById('notif-boton');
     var contador = document.getElementById('notif-contador');
@@ -212,7 +216,9 @@
             item.appendChild(mensaje);
             item.appendChild(hora);
             item.addEventListener('click', function () {
-                marcarLeida(n.id);
+                if (TIPOS_QUE_NO_SE_MARCAN_AL_HACER_CLIC.indexOf(n.tipo) === -1) {
+                    marcarLeida(n.id);
+                }
                 if (n.url) window.location.href = n.url;
             });
             li.appendChild(item);

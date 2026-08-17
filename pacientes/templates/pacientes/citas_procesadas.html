@@ -93,7 +93,7 @@
                     <span class="convenio">{{ orden.cita.get_convenio_display }}</span>
                 </div>
                 <div class="datos">
-                    {{ orden.edad_paciente }} años —
+                    {% if orden.edad_paciente is not None %}{{ orden.edad_paciente }} años{% else %}Edad no registrada{% endif %} —
                     {{ orden.cita.paciente.get_sexo_display }} —
                     Estudio: {{ orden.cita.tipo_estudio.nombre }} —
                     Cita: {{ orden.cita.fecha }} {{ orden.cita.hora|time:'H:i' }}

@@ -17,11 +17,26 @@ class Paciente(models.Model):
     ]
 
     dpi = models.CharField(max_length=20, unique=True, verbose_name='DPI')
+    carnet_igss = models.CharField(
+        max_length=20, unique=True, null=True, blank=True,
+        verbose_name='carné de afiliación IGSS',
+        help_text='Obligatorio para citas por COEX o Emergencia IGSS.',
+    )
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
-    sexo = models.CharField(max_length=1, choices=SEXO_CHOICES)
+    sexo = models.CharField(max_length=1, choices=SEXO_CHOICES, blank=True)
     telefono = models.CharField(max_length=20, blank=True)
-    fecha_nacimiento = models.DateField()
+    fecha_nacimiento = models.DateField(null=True, blank=True)
+
+    # Campos que se pueden dejar sin llenar al registrar al paciente (ej. en
+    # una emergencia) y que luego se le avisan pendientes a recepción. Ver
+    # accounts.management.commands.notificar_pacientes_pendientes.
+    CAMPOS_OPCIONALES = ('sexo', 'fecha_nacimiento', 'telefono')
+    ETIQUETAS_CAMPOS_OPCIONALES = {
+        'sexo': 'Sexo',
+        'fecha_nacimiento': 'Fecha de nacimiento',
+        'telefono': 'Teléfono',
+    }
 
     class Meta:
         db_table = 'pacientes'
@@ -31,7 +46,17 @@ class Paciente(models.Model):
     def __str__(self):
         return f'{self.nombre} {self.apellido} ({self.dpi})'
 
+    def campos_pendientes(self):
+        """Nombres legibles de los campos opcionales que todavía no se
+        llenaron para este paciente."""
+        return [
+            etiqueta for campo, etiqueta in self.ETIQUETAS_CAMPOS_OPCIONALES.items()
+            if not getattr(self, campo)
+        ]
+
     def edad_en(self, fecha):
+        if not self.fecha_nacimiento:
+            return None
         años = fecha.year - self.fecha_nacimiento.year
         if (fecha.month, fecha.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day):
             años -= 1
@@ -42,6 +67,12 @@ class TipoEstudio(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
     precio = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     activo = models.BooleanField(default=True)
+    radiologos = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='tipos_estudio_asignados',
+        limit_choices_to={'rol': 'medico_radiologo'},
+        verbose_name='radiólogos que realizan este estudio',
+        help_text='Al agendar una cita de este estudio, solo se podrá asignar a estos radiólogos.',
+    )
 
     class Meta:
         db_table = 'tipos_estudio'
@@ -286,15 +317,21 @@ class Notificacion(models.Model):
     listo para informar, o un informe ya terminado."""
 
     TIPO_CITA_ASIGNADA = 'cita_asignada'
+    TIPO_CITA_CONFIRMADA = 'cita_confirmada'
+    TIPO_CITA_RECHAZADA = 'cita_rechazada'
     TIPO_ORDEN_PENDIENTE = 'orden_pendiente'
     TIPO_ESTUDIO_LISTO_INFORMAR = 'estudio_listo_informar'
     TIPO_ESTUDIO_COMPLETADO = 'estudio_completado'
+    TIPO_DATOS_PACIENTE_PENDIENTES = 'datos_paciente_pendientes'
 
     TIPO_CHOICES = [
         (TIPO_CITA_ASIGNADA, 'Nueva cita asignada'),
+        (TIPO_CITA_CONFIRMADA, 'Cita confirmada'),
+        (TIPO_CITA_RECHAZADA, 'Cita rechazada'),
         (TIPO_ORDEN_PENDIENTE, 'Nueva orden de trabajo pendiente'),
         (TIPO_ESTUDIO_LISTO_INFORMAR, 'Estudio listo para informar'),
         (TIPO_ESTUDIO_COMPLETADO, 'Estudio completado'),
+        (TIPO_DATOS_PACIENTE_PENDIENTES, 'Datos de paciente pendientes de llenar'),
     ]
 
     destinatario = models.ForeignKey(

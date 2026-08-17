@@ -31,6 +31,7 @@ PANTALLAS_POR_ROL = {
                 {'nombre': 'Pantalla de turnos', 'url_name': 'pantalla_turnos_emergencia'},
             ],
         },
+        {'nombre': 'Estudios realizados', 'url_name': 'historial_pacientes'},
     ],
     Usuario.ROL_TECNICO_IMAGENES: [
         {'nombre': 'Órdenes pendientes', 'url_name': 'ordenes_pendientes'},

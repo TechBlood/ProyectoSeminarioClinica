@@ -129,7 +129,7 @@
         <h2>Paciente</h2>
         <div class="datos">
             <strong>{{ cita.paciente.nombre }} {{ cita.paciente.apellido }}</strong><br>
-            DPI: {{ cita.paciente.dpi }} — {{ edad }} años — {{ cita.paciente.get_sexo_display }}<br>
+            DPI: {{ cita.paciente.dpi }} — {% if edad is not None %}{{ edad }} años{% else %}Edad no registrada{% endif %} — {{ cita.paciente.get_sexo_display }}<br>
             Teléfono: {{ cita.paciente.telefono|default:"—" }}<br>
             Convenio: {{ cita.get_convenio_display }} — Estudio: {{ cita.tipo_estudio.nombre }}
         </div>

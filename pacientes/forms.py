@@ -5,7 +5,9 @@ from django.utils import timezone
 
 from accounts.models import Usuario
 
-from .models import Paciente, Ticket, TipoEstudio
+from .models import Cita, Paciente, Ticket, TipoEstudio
+
+CONVENIOS_QUE_REQUIEREN_CARNET_IGSS = (Cita.CONVENIO_COEX, Cita.CONVENIO_EMERGENCIA_IGSS)
 
 NOMBRE_REGEX = re.compile(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$')
 
@@ -13,6 +15,23 @@ NOMBRE_REGEX = re.compile(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$')
 def validar_fecha_nacimiento_no_futura(fecha):
     if fecha and fecha > timezone.localdate():
         raise forms.ValidationError('La fecha de nacimiento no puede ser una fecha futura.')
+
+
+def limpiar_carnet_igss(carnet, *, dpi, requerido):
+    """Valida el carné de afiliación IGSS: obligatorio según el convenio, y
+    único entre pacientes (el mismo paciente, identificado por su DPI,
+    puede conservar el suyo)."""
+    carnet = (carnet or '').strip()
+    if not carnet:
+        if requerido:
+            raise forms.ValidationError(
+                'El carné de afiliación IGSS es obligatorio para COEX y Emergencia IGSS.'
+            )
+        return None
+    duplicado = Paciente.objects.filter(carnet_igss=carnet).exclude(dpi=dpi).exists()
+    if duplicado:
+        raise forms.ValidationError('Ese carné de afiliación IGSS ya está registrado con otro paciente.')
+    return carnet
 
 
 class AgendarCitaForm(forms.Form):
@@ -41,9 +60,19 @@ class AgendarCitaForm(forms.Form):
             'title': 'Solo letras y espacios.',
         }),
     )
-    sexo = forms.ChoiceField(choices=Paciente.SEXO_CHOICES)
+    sexo = forms.ChoiceField(
+        choices=[('', '---------')] + list(Paciente.SEXO_CHOICES), required=False,
+    )
     telefono = forms.CharField(max_length=20, required=False)
-    fecha_nacimiento = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    fecha_nacimiento = forms.DateField(
+        required=False, widget=forms.DateInput(attrs={'type': 'date'}),
+    )
+    carnet_igss = forms.CharField(
+        label='Carné de afiliación IGSS',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={'inputmode': 'numeric'}),
+    )
 
     tipo_estudio = forms.ModelChoiceField(
         queryset=TipoEstudio.objects.filter(activo=True).order_by('nombre')
@@ -58,9 +87,12 @@ class AgendarCitaForm(forms.Form):
     hora = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))
     notas = forms.CharField(widget=forms.Textarea, required=False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, convenio=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['fecha_nacimiento'].widget.attrs['max'] = timezone.localdate().isoformat()
+        self.convenio = convenio
+        if convenio in CONVENIOS_QUE_REQUIEREN_CARNET_IGSS:
+            self.fields['carnet_igss'].widget.attrs['required'] = True
 
     def clean_dpi(self):
         dpi = self.cleaned_data['dpi'].strip()
@@ -86,6 +118,24 @@ class AgendarCitaForm(forms.Form):
         fecha = self.cleaned_data['fecha_nacimiento']
         validar_fecha_nacimiento_no_futura(fecha)
         return fecha
+
+    def clean_carnet_igss(self):
+        return limpiar_carnet_igss(
+            self.cleaned_data.get('carnet_igss'),
+            dpi=self.cleaned_data.get('dpi'),
+            requerido=self.convenio in CONVENIOS_QUE_REQUIEREN_CARNET_IGSS,
+        )
+
+    def clean(self):
+        cleaned = super().clean()
+        tipo_estudio = cleaned.get('tipo_estudio')
+        radiologo = cleaned.get('radiologo')
+        if tipo_estudio and radiologo and not tipo_estudio.radiologos.filter(id=radiologo.id).exists():
+            self.add_error(
+                'radiologo',
+                f'{radiologo.get_full_name() or radiologo.username} no realiza estudios de "{tipo_estudio}".',
+            )
+        return cleaned
 
 
 class RegistrarTicketForm(forms.Form):
@@ -118,9 +168,18 @@ class RegistrarTicketForm(forms.Form):
             'title': 'Solo letras y espacios.',
         }),
     )
-    sexo = forms.ChoiceField(choices=Paciente.SEXO_CHOICES)
+    sexo = forms.ChoiceField(
+        choices=[('', '---------')] + list(Paciente.SEXO_CHOICES), required=False,
+    )
     telefono = forms.CharField(max_length=20, required=False)
-    fecha_nacimiento = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    fecha_nacimiento = forms.DateField(
+        required=False, widget=forms.DateInput(attrs={'type': 'date'}),
+    )
+    carnet_igss = forms.CharField(
+        label='Carné de afiliación IGSS',
+        max_length=20,
+        widget=forms.TextInput(attrs={'inputmode': 'numeric', 'required': True}),
+    )
     prioridad = forms.ChoiceField(
         choices=Ticket.PRIORIDAD_CHOICES,
         initial=Ticket.PRIORIDAD_NORMAL,
@@ -159,6 +218,32 @@ class RegistrarTicketForm(forms.Form):
 
     def clean_fecha_nacimiento(self):
         fecha = self.cleaned_data['fecha_nacimiento']
+        validar_fecha_nacimiento_no_futura(fecha)
+        return fecha
+
+    def clean_carnet_igss(self):
+        return limpiar_carnet_igss(
+            self.cleaned_data.get('carnet_igss'),
+            dpi=self.cleaned_data.get('dpi'),
+            requerido=True,
+        )
+
+
+class CompletarDatosPacienteForm(forms.Form):
+    """Usado desde la notificación de datos pendientes: solo pide los
+    campos opcionales que se pueden completar después (sexo, teléfono y
+    fecha de nacimiento)."""
+
+    sexo = forms.ChoiceField(
+        choices=[('', '---------')] + list(Paciente.SEXO_CHOICES), required=False,
+    )
+    telefono = forms.CharField(max_length=20, required=False)
+    fecha_nacimiento = forms.DateField(
+        required=False, widget=forms.DateInput(attrs={'type': 'date'}),
+    )
+
+    def clean_fecha_nacimiento(self):
+        fecha = self.cleaned_data.get('fecha_nacimiento')
         validar_fecha_nacimiento_no_futura(fecha)
         return fecha
 

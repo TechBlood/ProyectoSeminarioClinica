@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estudios realizados - Clínica de Imágenes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 2rem;
+        }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        h1 {
+            color: #0f172a;
+            font-size: 1.3rem;
+        }
+        a.volver {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        form.buscador {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            max-width: 480px;
+        }
+        form.buscador input[type="text"] {
+            flex: 1;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+        form.buscador button {
+            padding: 0.55rem 1rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        form.buscador button:hover {
+            background: #1d4ed8;
+        }
+        .paciente {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .paciente.pendiente {
+            border-left: 4px solid #d97706;
+        }
+        .paciente .nombre {
+            color: #0f172a;
+            font-weight: bold;
+        }
+        .paciente .dpi {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-bottom: 0.35rem;
+        }
+        .etiqueta-pendiente {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+        .etiquetas-convenio {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+        /* Misma píldora que usa el radiólogo en "Citas procesadas" para el convenio. */
+        .convenio {
+            background: #ddd6fe;
+            color: #4c1d95;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+        }
+        .acciones {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+        .btn-ver, .btn-completar {
+            display: inline-block;
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .btn-ver {
+            background: #2563eb;
+            color: white;
+        }
+        .btn-ver:hover {
+            background: #1d4ed8;
+        }
+        .btn-completar {
+            background: #d97706;
+            color: white;
+        }
+        .btn-completar:hover {
+            background: #b45309;
+        }
+        .vacio {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+{% include 'includes/notificaciones.html' %}
+    <div class="topbar">
+        <h1>Estudios realizados</h1>
+        <a class="volver" href="{% url 'dashboard' %}">&larr; Volver al panel</a>
+    </div>
+
+    <form class="buscador" method="get" id="form-buscador">
+        <input
+            type="text" name="q" value="{{ busqueda }}" id="input-buscador"
+            placeholder="Buscar por nombre, apellido o DPI" autocomplete="off"
+        >
+        <button type="submit">Buscar</button>
+    </form>
+
+    <div id="resultados">
+        {% include 'pacientes/includes/_resultados_pacientes.html' %}
+    </div>
+
+    <script>
+        (function () {
+            var input = document.getElementById('input-buscador');
+            var resultados = document.getElementById('resultados');
+            var baseUrl = "{% url 'historial_pacientes' %}";
+            var temporizador = null;
+            var peticionActual = null;
+
+            function buscar() {
+                var q = input.value.trim();
+                var url = q ? baseUrl + '?q=' + encodeURIComponent(q) : baseUrl;
+
+                if (peticionActual) {
+                    peticionActual.abort();
+                }
+                var controlador = new AbortController();
+                peticionActual = controlador;
+
+                fetch(url, {
+                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                    signal: controlador.signal,
+                })
+                    .then(function (respuesta) { return respuesta.text(); })
+                    .then(function (html) {
+                        resultados.innerHTML = html;
+                        window.history.replaceState(null, '', url);
+                    })
+                    .catch(function (error) {
+                        if (error.name !== 'AbortError') {
+                            resultados.innerHTML = '<p class="vacio">Ocurrió un error al buscar. Intenta de nuevo.</p>';
+                        }
+                    });
+            }
+
+            input.addEventListener('input', function () {
+                clearTimeout(temporizador);
+                temporizador = setTimeout(buscar, 300);
+            });
+
+            document.getElementById('form-buscador').addEventListener('submit', function (evento) {
+                evento.preventDefault();
+                clearTimeout(temporizador);
+                buscar();
+            });
+        })();
+    </script>
+</body>
+</html>

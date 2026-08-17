@@ -122,7 +122,7 @@
     <div class="card">
         <div class="resumen">
             <strong>{{ cita.paciente.nombre }} {{ cita.paciente.apellido }}</strong> ({{ cita.paciente.dpi }})<br>
-            {{ edad }} años, {{ cita.paciente.get_sexo_display }}<br>
+            {% if edad is not None %}{{ edad }} años{% else %}Edad no registrada{% endif %}, {{ cita.paciente.get_sexo_display }}<br>
             Estudio: {{ cita.tipo_estudio.nombre }} — {{ cita.fecha }} {{ cita.hora|time:'H:i' }}<br>
             Motivo: {{ orden.motivo }}
         </div>

@@ -19,6 +19,11 @@
         h1 {
             color: #0f172a;
         }
+        .logout-flotante {
+            position: fixed;
+            right: 2rem;
+            bottom: 2rem;
+        }
         button.logout {
             padding: 0.5rem 1rem;
             border: none;
@@ -27,6 +32,7 @@
             cursor: pointer;
             background: #dc2626;
             color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         .mensajes {
             list-style: none;
@@ -71,11 +77,11 @@
 {% include 'includes/notificaciones.html' %}
     <div class="topbar">
         <h1>Bienvenido, {{ user.username }} ({{ user.get_rol_display }})</h1>
-        <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button class="logout" type="submit">Cerrar sesión</button>
-        </form>
     </div>
+    <form class="logout-flotante" method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="logout" type="submit">Cerrar sesión</button>
+    </form>
     {% if messages %}
         <ul class="mensajes">
             {% for message in messages %}

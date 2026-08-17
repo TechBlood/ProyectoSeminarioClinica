@@ -3,6 +3,7 @@ import datetime
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
@@ -16,6 +17,7 @@ from .forms import (
     AdjuntarImagenesForm,
     AdjuntarInformeForm,
     AgendarCitaForm,
+    CompletarDatosPacienteForm,
     CrearTipoEstudioForm,
     GenerarOrdenForm,
     ProcesarTicketForm,
@@ -57,6 +59,35 @@ def _notificar_cita_asignada(cita):
         ),
         cita=cita,
         url=reverse('solicitudes_pendientes'),
+    )
+
+
+def _notificar_cita_confirmada(cita):
+    """El radiólogo confirmó fecha/hora de la solicitud: se avisa a quien
+    la creó (recepción) para que pueda comunicárselo al paciente."""
+    Notificacion.notificar(
+        destinatario=cita.creada_por,
+        tipo=Notificacion.TIPO_CITA_CONFIRMADA,
+        mensaje=(
+            f'Cita confirmada: {cita.tipo_estudio} de {cita.paciente.nombre} '
+            f'{cita.paciente.apellido} el {cita.fecha} a las {cita.hora}.'
+        ),
+        cita=cita,
+        url=reverse(f'calendario_{cita.convenio}'),
+    )
+
+
+def _notificar_cita_rechazada(cita):
+    """El radiólogo rechazó la solicitud: se avisa a quien la creó."""
+    Notificacion.notificar(
+        destinatario=cita.creada_por,
+        tipo=Notificacion.TIPO_CITA_RECHAZADA,
+        mensaje=(
+            f'Cita rechazada: {cita.tipo_estudio} de {cita.paciente.nombre} '
+            f'{cita.paciente.apellido}. Motivo: {cita.motivo_rechazo or "—"}'
+        ),
+        cita=cita,
+        url=reverse(f'calendario_{cita.convenio}'),
     )
 
 
@@ -125,20 +156,120 @@ CAMPOS_DATOS_PACIENTE = ('nombre', 'apellido', 'sexo', 'telefono', 'fecha_nacimi
 def obtener_o_actualizar_paciente(cd):
     """Reutiliza el paciente si el DPI ya existe (evita duplicar el registro)
     y sincroniza sus datos con lo capturado en el formulario, por si el
-    recepcionista corrigió algo (ej. un teléfono desactualizado)."""
+    recepcionista corrigió algo (ej. un teléfono desactualizado).
+
+    El carné de afiliación IGSS, el sexo, el teléfono y la fecha de
+    nacimiento son opcionales (ej. registro apurado en una emergencia) y se
+    identifican siempre por el DPI del paciente: si vienen vacíos no se
+    borra el valor que ya tuviera registrado de una visita anterior."""
+    carnet_igss = cd.get('carnet_igss') or None
     paciente, creado = Paciente.objects.get_or_create(
         dpi=cd['dpi'],
-        defaults={campo: cd[campo] for campo in CAMPOS_DATOS_PACIENTE},
+        defaults={**{campo: cd[campo] for campo in CAMPOS_DATOS_PACIENTE}, 'carnet_igss': carnet_igss},
     )
     if not creado:
-        cambiados = [
-            campo for campo in CAMPOS_DATOS_PACIENTE if getattr(paciente, campo) != cd[campo]
-        ]
+        cambiados = []
+        for campo in CAMPOS_DATOS_PACIENTE:
+            valor_nuevo = cd[campo]
+            si_opcional_y_vacio = campo in Paciente.CAMPOS_OPCIONALES and not valor_nuevo
+            if si_opcional_y_vacio:
+                continue
+            if getattr(paciente, campo) != valor_nuevo:
+                setattr(paciente, campo, valor_nuevo)
+                cambiados.append(campo)
+        if carnet_igss and paciente.carnet_igss != carnet_igss:
+            paciente.carnet_igss = carnet_igss
+            cambiados.append('carnet_igss')
         if cambiados:
-            for campo in cambiados:
-                setattr(paciente, campo, cd[campo])
             paciente.save(update_fields=cambiados)
     return paciente
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def completar_datos_paciente(request, paciente_id):
+    """Pantalla a la que llega la recepcionista al hacer clic en la
+    notificación de "datos pendientes": deja llenar sexo, teléfono y/o
+    fecha de nacimiento sin tener que pasar de nuevo por agendar una cita."""
+    paciente = get_object_or_404(Paciente, id=paciente_id)
+
+    if request.method == 'POST':
+        accion = request.POST.get('accion', 'revisar')
+        form = CompletarDatosPacienteForm(request.POST)
+
+        if accion == 'editar':
+            # El usuario quiere corregir lo que había escrito: se vuelve a
+            # mostrar el formulario editable con esos mismos valores
+            # (todavía no se guardó nada en la base de datos).
+            form = CompletarDatosPacienteForm(initial={
+                'sexo': request.POST.get('sexo', ''),
+                'telefono': request.POST.get('telefono', ''),
+                'fecha_nacimiento': request.POST.get('fecha_nacimiento', ''),
+            })
+            return render(request, 'pacientes/completar_datos_paciente.html', {
+                'form': form,
+                'paciente': paciente,
+                'pendientes': paciente.campos_pendientes(),
+            })
+
+        if form.is_valid() and accion == 'revisar':
+            # Primer envío: todavía no se guarda nada. Se muestra un
+            # resumen de lo que se va a grabar y se pide confirmarlo.
+            cd = form.cleaned_data
+            sexo_display = dict(Paciente.SEXO_CHOICES).get(cd['sexo'], '')
+            return render(request, 'pacientes/completar_datos_paciente.html', {
+                'form': form,
+                'paciente': paciente,
+                'pendientes': paciente.campos_pendientes(),
+                'confirmando': True,
+                'datos_confirmar': {
+                    'Sexo': sexo_display or '(sin cambio)',
+                    'Teléfono': cd['telefono'] or '(sin cambio)',
+                    'Fecha de nacimiento': cd['fecha_nacimiento'] or '(sin cambio)',
+                },
+            })
+
+        if form.is_valid() and accion == 'confirmar':
+            cd = form.cleaned_data
+            cambiados = [
+                campo for campo in ('sexo', 'telefono', 'fecha_nacimiento')
+                if cd[campo] and getattr(paciente, campo) != cd[campo]
+            ]
+            for campo in cambiados:
+                setattr(paciente, campo, cd[campo])
+            if cambiados:
+                paciente.save(update_fields=cambiados)
+                messages.success(
+                    request, f'Datos de {paciente.nombre} {paciente.apellido} actualizados.'
+                )
+            else:
+                messages.info(request, 'No se cargó ningún dato nuevo.')
+
+            if paciente.campos_pendientes():
+                return redirect('completar_datos_paciente', paciente_id=paciente.id)
+
+            # Recién ahora quedó completo: recién ahora se apaga el aviso
+            # (para cualquier recepcionista, no solo quien lo llenó). Hasta
+            # este punto la notificación se queda, aunque ya se haya
+            # abierto/leído esta pantalla.
+            Notificacion.objects.filter(
+                tipo=Notificacion.TIPO_DATOS_PACIENTE_PENDIENTES,
+                url=reverse('completar_datos_paciente', args=[paciente.id]),
+                leida=False,
+            ).update(leida=True)
+            return redirect('dashboard')
+    else:
+        form = CompletarDatosPacienteForm(initial={
+            'sexo': paciente.sexo,
+            'telefono': paciente.telefono,
+            'fecha_nacimiento': paciente.fecha_nacimiento,
+        })
+
+    return render(request, 'pacientes/completar_datos_paciente.html', {
+        'form': form,
+        'paciente': paciente,
+        'pendientes': paciente.campos_pendientes(),
+    })
 
 
 @login_required
@@ -160,6 +291,112 @@ def buscar_paciente_por_dpi(request):
         'fecha_nacimiento': (
             paciente.fecha_nacimiento.isoformat() if paciente.fecha_nacimiento else ''
         ),
+        'carnet_igss': paciente.carnet_igss or '',
+    })
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def radiologos_por_estudio(request):
+    """Usado por el formulario de agendar cita: al elegir el tipo de
+    estudio, solo deja elegir entre los radiólogos que realmente lo
+    realizan (ej. Celeste solo hace Ultrasonido y Rayos X)."""
+    tipo_estudio_id = request.GET.get('tipo_estudio')
+    radiologos = Usuario.objects.filter(
+        rol=Usuario.ROL_MEDICO_RADIOLOGO, is_active=True, tipos_estudio_asignados__id=tipo_estudio_id,
+    ).order_by('username').distinct()
+    return JsonResponse({
+        'radiologos': [
+            {'id': r.id, 'texto': r.get_full_name() or r.username} for r in radiologos
+        ],
+    })
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def historial_pacientes(request):
+    """Listado de pacientes con al menos un estudio ya realizado (informe
+    entregado), con búsqueda por nombre/apellido o DPI. Los que todavía
+    tienen datos pendientes (sexo/teléfono/fecha de nacimiento) van
+    primero, con un botón para completarlos; a los demás se les muestra de
+    qué convenio(s) son sus estudios (COEX, Privado, Emergencia IGSS)."""
+    busqueda = (request.GET.get('q') or '').strip()
+
+    pacientes_qs = Paciente.objects.filter(citas__estado=Cita.ESTADO_PROCESADA).distinct()
+    if busqueda:
+        pacientes_qs = pacientes_qs.filter(
+            Q(nombre__icontains=busqueda)
+            | Q(apellido__icontains=busqueda)
+            | Q(dpi__icontains=busqueda)
+        )
+
+    pacientes = list(pacientes_qs)
+
+    convenios_por_paciente = {}
+    if pacientes:
+        convenios_choices = dict(Cita.CONVENIO_CHOICES)
+        # .order_by() (sin argumentos) es necesario: si no, el `ordering`
+        # por defecto de Cita (fecha, hora) se cuela en el SELECT y hace
+        # que .distinct() no junte filas de un mismo convenio con distinta
+        # fecha, mostrando el mismo convenio repetido para un paciente.
+        filas = (
+            Cita.objects.filter(paciente__in=pacientes, estado=Cita.ESTADO_PROCESADA)
+            .order_by().values_list('paciente_id', 'convenio').distinct()
+        )
+        for paciente_id, convenio in filas:
+            convenios_por_paciente.setdefault(paciente_id, []).append(
+                convenios_choices.get(convenio, convenio)
+            )
+
+    for paciente in pacientes:
+        paciente.datos_pendientes = paciente.campos_pendientes()
+        paciente.convenios_estudios = sorted(convenios_por_paciente.get(paciente.id, []))
+
+    # Los que tienen datos pendientes primero, para que salten a la vista;
+    # el resto en orden alfabético, como antes.
+    pacientes.sort(key=lambda p: (not p.datos_pendientes, p.nombre, p.apellido))
+
+    contexto = {'pacientes': pacientes, 'busqueda': busqueda}
+
+    # Búsqueda en vivo: el JS de la página pide solo el listado (sin el
+    # HTML completo) a medida que se escribe en el buscador.
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'pacientes/includes/_resultados_pacientes.html', contexto)
+
+    return render(request, 'pacientes/historial_pacientes.html', contexto)
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def historial_paciente(request, paciente_id):
+    """Estudios ya realizados (con informe) de un paciente, del más
+    reciente al más antiguo."""
+    paciente = get_object_or_404(Paciente, id=paciente_id)
+    citas = (
+        Cita.objects.filter(paciente=paciente, estado=Cita.ESTADO_PROCESADA)
+        .select_related('tipo_estudio', 'orden_trabajo')
+        .order_by('-fecha', '-hora')
+    )
+    return render(request, 'pacientes/historial_paciente.html', {
+        'paciente': paciente,
+        'citas': citas,
+        'edad': paciente.edad_en(timezone.localdate()),
+        'hoy': timezone.localdate(),
+    })
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def ver_estudio_historial(request, cita_id):
+    """Vista de solo lectura de un estudio ya realizado: imágenes e
+    informe, tal como quedaron al terminar el proceso."""
+    cita = get_object_or_404(Cita, id=cita_id, estado=Cita.ESTADO_PROCESADA)
+    orden = get_object_or_404(OrdenTrabajo, cita=cita)
+    return render(request, 'pacientes/ver_estudio_historial.html', {
+        'cita': cita,
+        'orden': orden,
+        'edad': orden.edad_paciente,
+        'volver_url': reverse('historial_paciente', args=[cita.paciente_id]),
     })
 
 
@@ -250,9 +487,9 @@ def agendar_cita(request, convenio):
         return redirect(calendario_url)
 
     if request.method == 'POST':
-        form = AgendarCitaForm(request.POST)
+        form = AgendarCitaForm(request.POST, convenio=convenio)
     else:
-        form = AgendarCitaForm(initial={'fecha': fecha, 'hora': hora})
+        form = AgendarCitaForm(initial={'fecha': fecha, 'hora': hora}, convenio=convenio)
     form.fields['fecha'].widget = forms.HiddenInput()
     form.fields['hora'].widget = forms.HiddenInput()
 
@@ -300,10 +537,12 @@ def agendar_cita(request, convenio):
 
     return render(request, 'pacientes/agendar_cita.html', {
         'form': form,
+        'convenio': convenio,
         'convenio_nombre': convenio_nombre,
         'calendario_url': calendario_url,
         'fecha_valor': fecha,
         'hora_valor': hora,
+        'requiere_carnet_igss': convenio in (Cita.CONVENIO_COEX, Cita.CONVENIO_EMERGENCIA_IGSS),
     })
 
 
@@ -533,6 +772,7 @@ def revisar_solicitud(request, cita_id):
             cita.revisada_por = request.user
             cita.revisada_en = timezone.now()
             cita.save(update_fields=['estado', 'motivo_rechazo', 'revisada_por', 'revisada_en'])
+            _notificar_cita_rechazada(cita)
             Bitacora.registrar(
                 request=request,
                 usuario=request.user,
@@ -571,6 +811,7 @@ def revisar_solicitud(request, cita_id):
         cita.revisada_por = request.user
         cita.revisada_en = timezone.now()
         cita.save(update_fields=['fecha', 'hora', 'estado', 'revisada_por', 'revisada_en'])
+        _notificar_cita_confirmada(cita)
         Bitacora.registrar(
             request=request,
             usuario=request.user,

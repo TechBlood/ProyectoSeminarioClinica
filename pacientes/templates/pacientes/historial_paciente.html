@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ paciente.nombre }} {{ paciente.apellido }} - Estudios realizados</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 2rem;
+        }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            color: #0f172a;
+            font-size: 1.3rem;
+        }
+        a.volver {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .resumen {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            font-size: 0.85rem;
+            color: #334155;
+        }
+        .resumen strong {
+            color: #0f172a;
+            font-size: 1rem;
+        }
+        .estudio {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .estudio.hoy {
+            border-left: 4px solid #16a34a;
+        }
+        .estudio .tipo {
+            color: #0f172a;
+            font-weight: bold;
+        }
+        .estudio .fecha {
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+        .etiqueta-hoy {
+            background: #dcfce7;
+            color: #166534;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            margin-left: 0.5rem;
+        }
+        .btn-ver {
+            display: inline-block;
+            background: #2563eb;
+            color: white;
+            text-decoration: none;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.9rem;
+            border-radius: 6px;
+        }
+        .btn-ver:hover {
+            background: #1d4ed8;
+        }
+        .vacio {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+{% include 'includes/notificaciones.html' %}
+    <div class="topbar">
+        <h1>Estudios realizados</h1>
+        <a class="volver" href="{% url 'historial_pacientes' %}">&larr; Volver al listado de pacientes</a>
+    </div>
+
+    <div class="resumen">
+        <strong>{{ paciente.nombre }} {{ paciente.apellido }}</strong> (DPI: {{ paciente.dpi }})<br>
+        {% if edad is not None %}{{ edad }} años{% else %}Edad no registrada{% endif %}, {{ paciente.get_sexo_display }}
+        {% if paciente.telefono %} — Tel: {{ paciente.telefono }}{% endif %}
+    </div>
+
+    {% if citas %}
+        {% for cita in citas %}
+            <div class="estudio{% if cita.fecha == hoy %} hoy{% endif %}">
+                <div>
+                    <span class="tipo">{{ cita.tipo_estudio.nombre }}</span>
+                    {% if cita.fecha == hoy %}<span class="etiqueta-hoy">HOY</span>{% endif %}
+                    <div class="fecha">{{ cita.fecha }} {{ cita.hora|time:'H:i' }} — {{ cita.get_convenio_display }}</div>
+                </div>
+                <a class="btn-ver" href="{% url 'ver_estudio_historial' cita_id=cita.id %}">Ver estudio</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="vacio">Este paciente todavía no tiene estudios realizados.</p>
+    {% endif %}
+</body>
+</html>

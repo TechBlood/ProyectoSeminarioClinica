@@ -90,6 +90,11 @@
             padding: 0;
             margin: 0.25rem 0 0;
         }
+        .ayuda {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+        }
         button {
             margin-top: 1.5rem;
             width: 100%;
@@ -146,17 +151,25 @@
             {{ form.apellido }}
             {{ form.apellido.errors }}
 
-            <label for="{{ form.sexo.id_for_label }}">Sexo</label>
+            <label for="{{ form.sexo.id_for_label }}">Sexo (opcional)</label>
             {{ form.sexo }}
             {{ form.sexo.errors }}
 
-            <label for="{{ form.telefono.id_for_label }}">Teléfono</label>
+            <label for="{{ form.telefono.id_for_label }}">Teléfono (opcional)</label>
             {{ form.telefono }}
             {{ form.telefono.errors }}
 
-            <label for="{{ form.fecha_nacimiento.id_for_label }}">Fecha de nacimiento</label>
+            <label for="{{ form.fecha_nacimiento.id_for_label }}">Fecha de nacimiento (opcional)</label>
             {{ form.fecha_nacimiento }}
             {{ form.fecha_nacimiento.errors }}
+            <p class="ayuda">
+                En una emergencia, estos datos se pueden completar después: al final del
+                día se les avisa a las recepcionistas qué pacientes quedaron con datos pendientes.
+            </p>
+
+            <label for="{{ form.carnet_igss.id_for_label }}">Carné de afiliación IGSS</label>
+            {{ form.carnet_igss }}
+            {{ form.carnet_igss.errors }}
 
             <label for="{{ form.prioridad.id_for_label }}">Prioridad</label>
             {{ form.prioridad }}
@@ -177,7 +190,9 @@
         (function () {
             var dpiInput = document.getElementById('id_dpi');
             var aviso = document.getElementById('aviso-paciente-existente');
-            var camposAutocompletables = ['nombre', 'apellido', 'sexo', 'telefono', 'fecha_nacimiento'];
+            var camposAutocompletables = [
+                'nombre', 'apellido', 'sexo', 'telefono', 'fecha_nacimiento', 'carnet_igss',
+            ];
             var temporizadorBusqueda = null;
             var ultimoDpiBuscado = '';
 

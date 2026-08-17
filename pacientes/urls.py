@@ -7,6 +7,19 @@ urlpatterns = [
     path('estudios/nuevo/', views.crear_estudio, name='crear_estudio'),
     path('pacientes/buscar-por-dpi/', views.buscar_paciente_por_dpi, name='buscar_paciente_por_dpi'),
     path(
+        'pacientes/completar-datos/<int:paciente_id>/',
+        views.completar_datos_paciente,
+        name='completar_datos_paciente',
+    ),
+    path('estudios/radiologos-por-estudio/', views.radiologos_por_estudio, name='radiologos_por_estudio'),
+    path('pacientes/historial/', views.historial_pacientes, name='historial_pacientes'),
+    path('pacientes/historial/<int:paciente_id>/', views.historial_paciente, name='historial_paciente'),
+    path(
+        'pacientes/historial/estudio/<int:cita_id>/',
+        views.ver_estudio_historial,
+        name='ver_estudio_historial',
+    ),
+    path(
         'citas/calendario/coex/',
         views.seleccionar_horario,
         {'convenio': Cita.CONVENIO_COEX},

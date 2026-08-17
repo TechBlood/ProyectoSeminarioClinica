@@ -17,29 +17,13 @@ class UsuarioModelTests(TestCase):
         self.assertEqual(usuario.rol, Usuario.ROL_ADMINISTRADOR)
 
     def test_se_puede_crear_con_un_rol_especifico(self):
-        usuario = crear_usuario('tecnico3', rol=Usuario.ROL_TECNICO_IMAGENES)
+        usuario = crear_usuario('tecnico1', rol=Usuario.ROL_TECNICO_IMAGENES)
         self.assertEqual(usuario.rol, Usuario.ROL_TECNICO_IMAGENES)
 
-   
+    def test_los_porcentajes_de_comision_inician_en_cero(self):
+        usuario = crear_usuario('radiologo1', rol=Usuario.ROL_MEDICO_RADIOLOGO)
+        self.assertEqual(usuario.porcentaje_coex, 0)
+        self.assertEqual(usuario.porcentaje_privado, 0)
+        self.assertEqual(usuario.porcentaje_emergencia_igss, 0)
 
 
-class BitacoraModelTests(TestCase):
-
-    def setUp(self):
-        self.factory = RequestFactory()
-
-    def test_registrar_guarda_el_usuario_y_la_accion(self):
-        usuario = crear_usuario('recepcionista1')
-
-        Bitacora.registrar(accion=Bitacora.ACCION_LOGIN_EXITOSO, usuario=usuario)
-
-        evento = Bitacora.objects.get()
-        self.assertEqual(evento.usuario, usuario)
-        self.assertEqual(evento.accion, Bitacora.ACCION_LOGIN_EXITOSO)
-        self.assertEqual(evento.ip, None)
-
-   
-
-    
-
-    

@@ -36,13 +36,13 @@ pipeline {
             }
         }
 
-        stage('Run Login Tests') {
-            steps {
-                bat '''
-                ".venv\\Scripts\\python.exe" manage.py test accounts.tests.LoginViewTests
-                '''
-            }
-        }
+        stage('Run Tests') {
+    steps {
+        bat '''
+        ".venv\\Scripts\\python.exe" manage.py test pacientes.tests.PacienteTests
+        '''
+    }
+                }
     }
 
     post {

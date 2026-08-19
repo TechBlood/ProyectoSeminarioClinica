@@ -4,3 +4,5 @@ mysqlclient==2.2.8
 python-decouple==3.8
 sqlparse==0.5.5
 tzdata==2026.3
+numpy
+pydicom

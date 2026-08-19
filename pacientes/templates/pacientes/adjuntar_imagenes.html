@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container my-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Carga de Estudio DICOM - Orden #{{ orden.id }}</h4>
+        </div>
+        <div class="card-body">
+            <p><strong>Paciente:</strong> {{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}</p>
+            <p><strong>Estudio:</strong> {{ orden.cita.tipo_estudio.nombre }}</p>
+
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="imagenes_dicom" class="form-label">Seleccionar carpeta del estudio DICOM:</label>
+                    <input class="form-control" 
+                           type="file" 
+                           id="imagenes_dicom" 
+                           name="imagenes_dicom" 
+                           webkitdirectory 
+                           directory 
+                           multiple 
+                           required>
+                    <div class="form-text">
+                        Puedes seleccionar una carpeta completa con archivos DICOM (ej. carpetas con series, archivos `.dcm` o sin extensión como `I0`).
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-gear-wide-connected"></i> Convertir a JPG y Guardar
+                </button>
+                <a href="{% url 'ordenes_pendientes' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

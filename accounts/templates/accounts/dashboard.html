@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .topbar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #cbd5e1;
+    }
+    .topbar-header h1 {
+        color: #0f172a;
+        font-size: 1.3rem;
+        font-weight: bold;
+        margin: 0;
+    }
+    .topbar-header .user-role {
+        color: #64748b;
+        font-size: 0.9rem;
+        font-weight: normal;
+    }
+    .btn-cerrar-sesion {
+        background-color: #ef4444 !important;
+        color: #ffffff !important;
+        border: none;
+        padding: 0.45rem 0.85rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .btn-cerrar-sesion:hover {
+        background-color: #dc2626 !important;
+    }
+    .grid-pantallas {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 1.25rem;
+    }
+    .card-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 1.25rem;
+        background-color: #2563eb !important;
+        color: #ffffff !important;
+        font-weight: bold;
+        font-size: 0.9rem;
+        border-radius: 8px;
+        text-decoration: none !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border: none;
+        min-height: 85px;
+        transition: transform 0.15s ease, background-color 0.2s ease;
+    }
+    .card-btn:hover {
+        background-color: #1d4ed8 !important;
+        transform: translateY(-2px);
+    }
+    .card-btn-verde {
+        background-color: #16a34a !important;
+    }
+    .card-btn-verde:hover {
+        background-color: #15803d !important;
+    }
+    .card-btn i {
+        font-size: 1.5rem;
+        margin-bottom: 0.4rem;
+    }
+</style>
+
+<!-- Topbar con Notificaciones, Usuario y Botón de Salir -->
+<div class="topbar-header">
+    <h1>Bienvenido, {{ user.get_full_name|default:user.username }} <span class="user-role">({{ user.get_rol_display }})</span></h1>
+    
+    <div class="d-flex align-items-center gap-3">
+        <!-- Notificaciones partial -->
+        {% include 'includes/notificaciones.html' %}
+
+        <!-- Formulario Cierre de Sesión -->
+        <form method="post" action="{% url 'logout' %}" class="m-0">
+            {% csrf_token %}
+            <button type="submit" class="btn-cerrar-sesion">
+                <i class="bi bi-box-arrow-right me-1"></i> Cerrar sesión
+            </button>
+        </form>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-success py-2 border-0 shadow-sm mb-3">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Grid de Botones / Pantallas principales -->
+<div class="grid-pantallas mb-4">
+    {% for pantalla in pantallas %}
+        {% if pantalla.url_name != 'ordenes_pendientes' and pantalla.url_name != 'citas_procesadas' %}
+            {% if pantalla.clave %}
+                <a href="{% url 'pantalla_placeholder' clave=pantalla.clave %}" class="card-btn">
+                    <i class="bi bi-window-stack"></i>
+                    {{ pantalla.nombre }}
+                </a>
+            {% else %}
+                <a href="{% url pantalla.url_name %}" class="card-btn">
+                    <i class="bi bi-ui-checks-grid"></i>
+                    {{ pantalla.nombre }}
+                </a>
+            {% endif %}
+        {% endif %}
+    {% endfor %}
+
+    {% if user.rol == 'tecnico_imagenes' %}
+        <a href="{% url 'ordenes_pendientes' %}" class="card-btn card-btn-verde">
+            <i class="bi bi-camera-fill me-2"></i>
+            Procesar Orden / Cargar Captura
+        </a>
+    {% endif %}
+
+    <!-- BOTÓN ÚNICO PARA EL RADIÓLOGO -->
+    {% if user.rol == 'medico_radiologo' %}
+        <a href="{% url 'citas_procesadas' %}" class="card-btn card-btn-verde">
+            <i class="bi bi-file-earmark-medical me-2"></i>
+            Estudios
+        </a>
+    {% endif %}
+</div>
+
+<!-- Sección de Dictámenes/PDFs en Tabla (Solo si existen ordenes enviadas desde el contexto) -->
+{% if ordenes %}
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-white font-weight-bold">
+        <i class="bi bi-journal-medical me-2 text-primary"></i> Dictámenes e Informes Radiológicos
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle m-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Paciente</th>
+                        <th>Estudio</th>
+                        <th>Fecha</th>
+                        <th>Dictamen / Informe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for orden in ordenes %}
+                    <tr>
+                        <td>{{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}</td>
+                        <td>{{ orden.cita.tipo_estudio.nombre }}</td>
+                        <td>{{ orden.informe_creado_en|date:"d/m/Y H:i"|default:"-" }}</td>
+                        <td>
+                            {% if orden.informe_archivo %}
+                                <a href="{{ orden.informe_archivo.url }}" target="_blank" class="btn btn-sm btn-outline-danger me-1">
+                                    <i class="bi bi-file-pdf"></i> PDF
+                                </a>
+                            {% endif %}
+
+                            {% if orden.informe_texto %}
+                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalDictamen{{ orden.id }}">
+                                    <i class="bi bi-file-text"></i> Dictamen
+                                </button>
+
+                                <!-- Modal de Dictamen -->
+                                <div class="modal fade" id="modalDictamen{{ orden.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content text-start">
+                                            <div class="modal-header bg-info text-white">
+                                                <h5 class="modal-title">Dictamen Clínico - {{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}</h5>
+                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p><strong>Estudio:</strong> {{ orden.cita.tipo_estudio.nombre }}</p>
+                                                <p><strong>Fecha de Emisión:</strong> {{ orden.informe_creado_en|date:"d/m/Y H:i" }}</p>
+                                                <hr>
+                                                <h6><strong>Dictamen Radiológico:</strong></h6>
+                                                <div class="p-3 bg-light rounded border mt-2" style="white-space: pre-line;">
+                                                    {{ orden.informe_texto }}
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                {% if not orden.informe_archivo %}
+                                    <span class="badge bg-warning text-dark">Pendiente de informe</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

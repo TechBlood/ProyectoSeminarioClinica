@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Órdenes Pendientes</h2>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">&larr; Volver al panel</a>
+</div>
+
+{% if ordenes %}
+    <div class="row">
+        {% for orden in ordenes %}
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="card-title m-0">{{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}</h5>
+                            <span class="badge bg-primary">{{ orden.cita.get_convenio_display }}</span>
+                        </div>
+                        <p class="card-text text-muted mb-1">
+                            {{ orden.edad_paciente }} años — {{ orden.cita.paciente.get_sexo_display }} — <strong>{{ orden.cita.tipo_estudio.nombre }}</strong>
+                        </p>
+                        <p class="card-text"><small class="text-secondary">Indicación: {{ orden.motivo }}</small></p>
+                        
+                        <!-- BOTÓN DE ACCESO NATIVO A LA CARGA DE IMÁGENES -->
+                        <a href="{% url 'adjuntar_imagenes' orden.id %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-upload"></i> Cargar Imágenes DICOM
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info">No hay órdenes pendientes por el momento.</div>
+{% endif %}
+{% endblock %}

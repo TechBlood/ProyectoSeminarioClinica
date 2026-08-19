@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- Encabezado y Pestañas de Navegación -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            {% if ver == 'historial' %}
+                <h2 class="h3 fw-bold text-dark m-0">
+                    <i class="bi bi-journal-check text-primary me-2"></i>Historial de Citas Procesadas
+                </h2>
+                <p class="text-muted small m-0">Registro histórico de estudios con informe finalizado.</p>
+            {% else %}
+                <h2 class="h3 fw-bold text-dark m-0">
+                    <i class="bi bi-file-earmark-medical text-success me-2"></i>Estudios Listos para Diagnóstico
+                </h2>
+                <p class="text-muted small m-0">Órdenes con imágenes DICOM/PNG cargadas, pendientes de dictamen.</p>
+            {% endif %}
+        </div>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i> Volver al panel
+        </a>
+    </div>
+
+    <!-- Botones Selector de Vista -->
+    <div class="mb-3">
+        <a href="?ver=pendientes" class="btn btn-sm {% if ver != 'historial' %}btn-success fw-bold{% else %}btn-outline-success{% endif %} me-2">
+            <i class="bi bi-hourglass-split me-1"></i> Pendientes de Diagnóstico
+        </a>
+        <a href="?ver=historial" class="btn btn-sm {% if ver == 'historial' %}btn-primary fw-bold{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-clock-history me-1"></i> Historial Completado
+        </a>
+    </div>
+
+    <!-- Tabla Principal -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Paciente</th>
+                            <th>DPI</th>
+                            <th>Estudio</th>
+                            <th class="text-center">Acción / Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for orden in ordenes %}
+                        <tr>
+                            <td>
+                                <i class="bi bi-calendar-event me-1 text-muted"></i>
+                                {% if ver == 'historial' %}
+                                    {{ orden.informe_creado_en|date:"d/m/Y H:i"|default:"Completado" }}
+                                {% else %}
+                                    {{ orden.creada_en|date:"d/m/Y H:i" }}
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-primary">
+                                {{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}
+                            </td>
+                            <td>{{ orden.cita.paciente.dpi|default:"N/A" }}</td>
+                            <td>
+                                <span class="badge bg-light text-dark border">
+                                    {{ orden.cita.tipo_estudio.nombre }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if ver == 'historial' %}
+                                    <!-- Vista Historial: Ver Informes -->
+                                    {% if orden.informe_archivo %}
+                                        <a href="{{ orden.informe_archivo.url }}" target="_blank" class="btn btn-sm btn-outline-danger me-1">
+                                            <i class="bi bi-file-pdf"></i> PDF
+                                        </a>
+                                    {% endif %}
+
+                                    {% if orden.informe_texto %}
+                                        <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalHistorial{{ orden.id }}">
+                                            <i class="bi bi-file-text me-1"></i> Ver Dictamen
+                                        </button>
+
+                                        <!-- Modal Dictamen -->
+                                        <div class="modal fade" id="modalHistorial{{ orden.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-lg text-start">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-dark text-white">
+                                                        <h5 class="modal-title">
+                                                            Informe Clínico - {{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}
+                                                        </h5>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <p><strong>Paciente:</strong> {{ orden.cita.paciente.nombre }} {{ orden.cita.paciente.apellido }}</p>
+                                                        <p><strong>Estudio:</strong> {{ orden.cita.tipo_estudio.nombre }}</p>
+                                                        <hr>
+                                                        <div class="p-3 bg-light rounded border" style="white-space: pre-line;">
+                                                            {{ orden.informe_texto }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                {% else %}
+                                    <!-- Vista Pendientes: Adjuntar Informe -->
+                                    <a href="{% url 'adjuntar_informe' orden.cita.id %}" class="btn btn-sm btn-success">
+                                        <i class="bi bi-pencil-square me-1"></i> Diagnosticar / Adjuntar Informe
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox display-6 d-block mb-2 text-secondary"></i>
+                                {% if ver == 'historial' %}
+                                    No hay citas o dictámenes finalizados en el historial.
+                                {% else %}
+                                    No hay estudios pendientes de diagnóstico por el momento.
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

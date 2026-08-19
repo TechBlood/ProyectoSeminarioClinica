@@ -39,10 +39,10 @@ pipeline {
         stage('Run Tests') {
     steps {
         bat '''
-        ".venv\\Scripts\\python.exe" manage.py test pacientes.tests.PacienteTests
+        ".venv\\Scripts\\python.exe" manage.py test pacientes
         '''
     }
-                }
+}
     }
 
     post {

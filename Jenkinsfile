@@ -39,7 +39,7 @@ pipeline {
         stage('Run Tests') {
     steps {
         bat '''
-        ".venv\\Scripts\\python.exe" manage.py test pacientes
+        ".venv\\Scripts\\python.exe" manage.py test accounts.tests
         '''
     }
 }

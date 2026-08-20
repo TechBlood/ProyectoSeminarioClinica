@@ -10,15 +10,17 @@ class PacienteRecepcionTests(TestCase):
         self.recepcionista = Usuario.objects.create_user(
             username='recepcion1',
             password='Password123!',
-            rol='recepcionista'
+            rol=Usuario.ROL_RECEPCIONISTA if hasattr(Usuario, 'ROL_RECEPCIONISTA') else 'recepcionista'
         )
         self.client.login(username='recepcion1', password='Password123!')
 
-        # 2. Crear un radiólogo (requerido por el formulario)
+        # 2. Crear un radiólogo usando la constante correcta del modelo Usuario
+        rol_radiologo = getattr(Usuario, 'ROL_MEDICO_RADIOLOGO', 'medico_radiologo')
         self.radiologo = Usuario.objects.create_user(
             username='radiologo1',
             password='Password123!',
-            rol='radiologo'
+            rol=rol_radiologo,
+            is_active=True
         )
 
         # 3. Crear tipo de estudio activo
@@ -49,12 +51,12 @@ class PacienteRecepcionTests(TestCase):
             'fecha_nacimiento': '1990-01-01',
             'sexo': 'M',
             'tipo_estudio': self.tipo_estudio.id,
-            'radiologo': self.radiologo.id,  # <--- Campo obligatorio agregado
+            'radiologo': self.radiologo.id,
             'notas': 'Sin observaciones',
         }
 
         response = self.client.post(url, data)
         
-        # Validar redirección exitosa (302) y que el paciente fue creado
+        # Debe redirigir tras un agendamiento exitoso (302)
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Paciente.objects.filter(dpi='1234567890101').exists())

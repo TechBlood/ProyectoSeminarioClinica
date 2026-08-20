@@ -6,6 +6,7 @@ from pacientes.models import Paciente, TipoEstudio
 
 class PacienteRecepcionTests(TestCase):
     def setUp(self):
+        # 1. Crear recepcionista para autenticar
         self.recepcionista = Usuario.objects.create_user(
             username='recepcion1',
             password='Password123!',
@@ -13,6 +14,14 @@ class PacienteRecepcionTests(TestCase):
         )
         self.client.login(username='recepcion1', password='Password123!')
 
+        # 2. Crear un radiólogo (requerido por el formulario)
+        self.radiologo = Usuario.objects.create_user(
+            username='radiologo1',
+            password='Password123!',
+            rol='radiologo'
+        )
+
+        # 3. Crear tipo de estudio activo
         self.tipo_estudio = TipoEstudio.objects.create(
             nombre='Radiografía X',
             precio=150.00,
@@ -20,7 +29,7 @@ class PacienteRecepcionTests(TestCase):
         )
 
     def test_registro_paciente_y_cita(self):
-        # Siguiente día hábil (Lunes a Viernes)
+        # Calcular siguiente día hábil (Lunes a Viernes)
         fecha_prueba = date.today() + timedelta(days=1)
         while fecha_prueba.weekday() >= 5:
             fecha_prueba += timedelta(days=1)
@@ -40,14 +49,12 @@ class PacienteRecepcionTests(TestCase):
             'fecha_nacimiento': '1990-01-01',
             'sexo': 'M',
             'tipo_estudio': self.tipo_estudio.id,
+            'radiologo': self.radiologo.id,  # <--- Campo obligatorio agregado
             'notas': 'Sin observaciones',
         }
 
         response = self.client.post(url, data)
         
-        # Si el formulario falla, imprime los errores exactos en la consola de Jenkins
-        if 'form' in response.context and response.context['form'].errors:
-            print("ERRORES DEL FORMULARIO:", response.context['form'].errors)
-
-        self.assertEqual(response.status_code, 302, "La vista no redirigió, el formulario falló.")
+        # Validar redirección exitosa (302) y que el paciente fue creado
+        self.assertEqual(response.status_code, 302)
         self.assertTrue(Paciente.objects.filter(dpi='1234567890101').exists())

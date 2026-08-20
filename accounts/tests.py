@@ -6,7 +6,6 @@ from pacientes.models import Paciente, TipoEstudio
 
 class PacienteRecepcionTests(TestCase):
     def setUp(self):
-        # Crear recepcionista para autenticar la vista
         self.recepcionista = Usuario.objects.create_user(
             username='recepcion1',
             password='Password123!',
@@ -14,7 +13,6 @@ class PacienteRecepcionTests(TestCase):
         )
         self.client.login(username='recepcion1', password='Password123!')
 
-        # Crear estudio activo
         self.tipo_estudio = TipoEstudio.objects.create(
             nombre='Radiografía X',
             precio=150.00,
@@ -22,13 +20,13 @@ class PacienteRecepcionTests(TestCase):
         )
 
     def test_registro_paciente_y_cita(self):
-        # Calcular el siguiente día hábil (evita fines de semana)
+        # Siguiente día hábil (Lunes a Viernes)
         fecha_prueba = date.today() + timedelta(days=1)
-        while fecha_prueba.weekday() >= 5:  # 5 = Sábado, 6 = Domingo
+        while fecha_prueba.weekday() >= 5:
             fecha_prueba += timedelta(days=1)
         
         fecha_str = fecha_prueba.strftime('%Y-%m-%d')
-        hora_str = '08:00'
+        hora_str = '08:00:00'
 
         url = f"{reverse('agendar_cita_coex')}?fecha={fecha_str}&hora={hora_str}"
         
@@ -37,16 +35,19 @@ class PacienteRecepcionTests(TestCase):
             'hora': hora_str,
             'dpi': '1234567890101',
             'nombre': 'Juan',
-            'apellido': 'Pérez',
+            'apellido': 'Perez',
             'telefono': '55555555',
             'fecha_nacimiento': '1990-01-01',
             'sexo': 'M',
             'tipo_estudio': self.tipo_estudio.id,
-            'notas': 'Prueba de agendamiento'
+            'notas': 'Sin observaciones',
         }
 
         response = self.client.post(url, data)
         
-        # Debe redirigir tras un agendamiento exitoso (302)
-        self.assertIn(response.status_code, [200, 302])
+        # Si el formulario falla, imprime los errores exactos en la consola de Jenkins
+        if 'form' in response.context and response.context['form'].errors:
+            print("ERRORES DEL FORMULARIO:", response.context['form'].errors)
+
+        self.assertEqual(response.status_code, 302, "La vista no redirigió, el formulario falló.")
         self.assertTrue(Paciente.objects.filter(dpi='1234567890101').exists())

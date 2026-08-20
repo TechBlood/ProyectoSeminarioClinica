@@ -6,7 +6,7 @@ from pacientes.models import Paciente, TipoEstudio
 
 class PacienteRecepcionTests(TestCase):
     def setUp(self):
-        # 1. Usuario con rol recepcionista
+        # Crear recepcionista para autenticar la vista
         self.recepcionista = Usuario.objects.create_user(
             username='recepcion1',
             password='Password123!',
@@ -14,7 +14,7 @@ class PacienteRecepcionTests(TestCase):
         )
         self.client.login(username='recepcion1', password='Password123!')
 
-        # 2. Tipo de estudio activo
+        # Crear estudio activo
         self.tipo_estudio = TipoEstudio.objects.create(
             nombre='Radiografía X',
             precio=150.00,
@@ -22,14 +22,19 @@ class PacienteRecepcionTests(TestCase):
         )
 
     def test_registro_paciente_y_cita(self):
-        # La fecha debe ser mañana para evitar validaciones de fechas pasadas o fuera de ventana
-        fecha_valida = (date.today() + timedelta(days=1)).strftime('%Y-%m-%d')
+        # Calcular el siguiente día hábil (evita fines de semana)
+        fecha_prueba = date.today() + timedelta(days=1)
+        while fecha_prueba.weekday() >= 5:  # 5 = Sábado, 6 = Domingo
+            fecha_prueba += timedelta(days=1)
         
-        url = f"{reverse('agendar_cita_coex')}?fecha={fecha_valida}&hora=08:00:00"
+        fecha_str = fecha_prueba.strftime('%Y-%m-%d')
+        hora_str = '08:00'
+
+        url = f"{reverse('agendar_cita_coex')}?fecha={fecha_str}&hora={hora_str}"
         
         data = {
-            'fecha': fecha_valida,
-            'hora': '08:00:00',
+            'fecha': fecha_str,
+            'hora': hora_str,
             'dpi': '1234567890101',
             'nombre': 'Juan',
             'apellido': 'Pérez',
@@ -37,10 +42,11 @@ class PacienteRecepcionTests(TestCase):
             'fecha_nacimiento': '1990-01-01',
             'sexo': 'M',
             'tipo_estudio': self.tipo_estudio.id,
+            'notas': 'Prueba de agendamiento'
         }
 
         response = self.client.post(url, data)
         
-        # Validar que la petición procesó con éxito
+        # Debe redirigir tras un agendamiento exitoso (302)
         self.assertIn(response.status_code, [200, 302])
         self.assertTrue(Paciente.objects.filter(dpi='1234567890101').exists())

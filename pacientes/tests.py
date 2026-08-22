@@ -176,8 +176,31 @@ class OrdenTrabajoModelTests(TestCase):
 
 class HorariosTests(TestCase):
 
-    def test_horas_disponibles_va_de_inicio_a_fin_sin_incluir_el_fin(self):
-        self.assertEqual(horarios.horas_disponibles(), list(range(7, 17)))
+    def test_horarios_disponibles_va_de_inicio_a_fin_cada_15_minutos(self):
+        disponibles = horarios.horarios_disponibles()
+        self.assertEqual(disponibles[0], datetime.time(7, 0))
+        self.assertEqual(disponibles[1], datetime.time(7, 15))
+        self.assertEqual(disponibles[-1], datetime.time(16, 45))
+        self.assertNotIn(datetime.time(17, 0), disponibles)
+        self.assertEqual(len(disponibles), 40)
+
+    def test_rango_ocupado_por_suma_la_duracion_a_la_hora_de_inicio(self):
+        inicio, fin = horarios.rango_ocupado_por(
+            datetime.date(2026, 8, 12), datetime.time(7, 15), 120,
+        )
+        self.assertEqual(inicio, datetime.datetime(2026, 8, 12, 7, 15))
+        self.assertEqual(fin, datetime.datetime(2026, 8, 12, 9, 15))
+
+    def test_se_cruzan_detecta_solapamiento_de_rangos(self):
+        cita_2_horas = horarios.rango_ocupado_por(
+            datetime.date(2026, 8, 12), datetime.time(7, 15), 120,
+        )
+        self.assertTrue(horarios.se_cruzan(
+            cita_2_horas, horarios.rango_ocupado_por(datetime.date(2026, 8, 12), datetime.time(8, 0), 15),
+        ))
+        self.assertFalse(horarios.se_cruzan(
+            cita_2_horas, horarios.rango_ocupado_por(datetime.date(2026, 8, 12), datetime.time(9, 15), 15),
+        ))
 
     def test_inicio_semana_devuelve_el_lunes_de_esa_semana(self):
         miercoles = datetime.date(2026, 8, 12)  # miércoles
@@ -200,7 +223,7 @@ class HorariosTests(TestCase):
         self.assertTrue(horarios.fuera_de_ventana(fecha))
 
 
-
+class TicketModelTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_tickets')
@@ -248,7 +271,7 @@ class HorariosTests(TestCase):
         self.assertEqual(ticket.turno, turno_original)
 
 
-
+class RegistrarTicketEmergenciaViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_view', rol=Usuario.ROL_RECEPCIONISTA)
@@ -303,7 +326,7 @@ class HorariosTests(TestCase):
         self.assertEqual(Ticket.objects.count(), 0)
 
 
-
+class BuscarPacientePorDpiViewTests(TestCase):
     """Endpoint que usan Agendar cita y Registrar Ticket para autocompletar
     los datos del paciente por DPI, en vez de volver a escribirlos."""
 
@@ -386,6 +409,7 @@ class AgendarCitaViewTests(TestCase):
         self.assertEqual(paciente.telefono, '55599999')
 
 
+class PantallaTurnosEmergenciaViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_turnos', rol=Usuario.ROL_RECEPCIONISTA)
@@ -410,7 +434,7 @@ class AgendarCitaViewTests(TestCase):
         self.assertNotIn(ticket_atendido, cola)
 
 
-
+class ProcesarTicketEmergenciaViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('recepcionista_procesar', rol=Usuario.ROL_RECEPCIONISTA)
@@ -541,7 +565,7 @@ class FechaNacimientoNoFuturaTests(TestCase):
         self.assertTrue(form.is_valid())
 
 
-
+class NotificacionesTests(TestCase):
     """HU: cada hand-off del flujo (cita asignada, orden pendiente, estudio
     listo para informar, estudio completado) genera una Notificacion para
     quien tiene que actuar, que la campanita del navegador usa para avisar
@@ -669,6 +693,7 @@ class FechaNacimientoNoFuturaTests(TestCase):
         )
 
 
+class NotificacionesPendientesViewTests(TestCase):
 
     def setUp(self):
         self.usuario = crear_usuario('usuario_notif_api', rol=Usuario.ROL_TECNICO_IMAGENES)

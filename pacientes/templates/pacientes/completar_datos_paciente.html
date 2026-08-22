@@ -104,48 +104,6 @@
         button:hover {
             background: #1d4ed8;
         }
-        .botones {
-            display: flex;
-            gap: 0.75rem;
-        }
-        .botones button {
-            margin-top: 1.5rem;
-        }
-        button.secundario {
-            background: white;
-            color: #334155;
-            border: 1px solid #cbd5e1;
-        }
-        button.secundario:hover {
-            background: #f1f5f9;
-        }
-        table.confirmacion {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 0.5rem;
-        }
-        table.confirmacion td {
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 0.9rem;
-        }
-        table.confirmacion td:first-child {
-            color: #64748b;
-            width: 45%;
-        }
-        table.confirmacion td:last-child {
-            color: #0f172a;
-            font-weight: 600;
-        }
-        .aviso-confirmar {
-            background: #eff6ff;
-            color: #1e3a8a;
-            border: 1px solid #bfdbfe;
-            border-radius: 8px;
-            padding: 0.6rem 0.75rem;
-            font-size: 0.85rem;
-            margin-bottom: 1.25rem;
-        }
     </style>
 </head>
 <body>
@@ -174,56 +132,24 @@
             </div>
         {% endif %}
 
-        {% if confirmando %}
-            <div class="aviso-confirmar">
-                Revisá que los datos sean correctos antes de guardarlos.
-            </div>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
 
-            <table class="confirmacion">
-                {% for etiqueta, valor in datos_confirmar.items %}
-                    <tr>
-                        <td>{{ etiqueta }}</td>
-                        <td>{{ valor }}</td>
-                    </tr>
-                {% endfor %}
-            </table>
+            <label for="{{ form.sexo.id_for_label }}">Sexo</label>
+            {{ form.sexo }}
+            {{ form.sexo.errors }}
 
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="sexo" value="{{ form.sexo.value|default:'' }}">
-                <input type="hidden" name="telefono" value="{{ form.telefono.value|default:'' }}">
-                <input type="hidden" name="fecha_nacimiento" value="{{ form.fecha_nacimiento.value|default:'' }}">
+            <label for="{{ form.telefono.id_for_label }}">Teléfono</label>
+            {{ form.telefono }}
+            {{ form.telefono.errors }}
 
-                <div class="botones">
-                    <button type="submit" name="accion" value="editar" class="secundario" formnovalidate>
-                        &larr; Editar
-                    </button>
-                    <button type="submit" name="accion" value="confirmar">
-                        Confirmar y guardar
-                    </button>
-                </div>
-            </form>
-        {% else %}
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="accion" value="revisar">
-                {{ form.non_field_errors }}
+            <label for="{{ form.fecha_nacimiento.id_for_label }}">Fecha de nacimiento</label>
+            {{ form.fecha_nacimiento }}
+            {{ form.fecha_nacimiento.errors }}
 
-                <label for="{{ form.sexo.id_for_label }}">Sexo</label>
-                {{ form.sexo }}
-                {{ form.sexo.errors }}
-
-                <label for="{{ form.telefono.id_for_label }}">Teléfono</label>
-                {{ form.telefono }}
-                {{ form.telefono.errors }}
-
-                <label for="{{ form.fecha_nacimiento.id_for_label }}">Fecha de nacimiento</label>
-                {{ form.fecha_nacimiento }}
-                {{ form.fecha_nacimiento.errors }}
-
-                <button type="submit">Guardar datos</button>
-            </form>
-        {% endif %}
+            <button type="submit">Guardar datos</button>
+        </form>
     </div>
 </body>
 </html>

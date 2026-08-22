@@ -12,6 +12,22 @@ CONVENIOS_QUE_REQUIEREN_CARNET_IGSS = (Cita.CONVENIO_COEX, Cita.CONVENIO_EMERGEN
 NOMBRE_REGEX = re.compile(r'^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]+$')
 
 
+class TipoEstudioSelect(forms.Select):
+    """Select de tipo de estudio que agrega precio y duración como atributos
+    data-* de cada <option>, para que el formulario los muestre en pantalla
+    sin pedirlos de nuevo al servidor."""
+
+    detalles = {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        detalle = self.detalles.get(str(value)) if value else None
+        if detalle:
+            option['attrs']['data-precio'] = str(detalle[0])
+            option['attrs']['data-duracion'] = str(detalle[1])
+        return option
+
+
 def validar_fecha_nacimiento_no_futura(fecha):
     if fecha and fecha > timezone.localdate():
         raise forms.ValidationError('La fecha de nacimiento no puede ser una fecha futura.')
@@ -75,13 +91,20 @@ class AgendarCitaForm(forms.Form):
     )
 
     tipo_estudio = forms.ModelChoiceField(
-        queryset=TipoEstudio.objects.filter(activo=True).order_by('nombre')
+        queryset=TipoEstudio.objects.filter(activo=True).order_by('nombre'),
+        widget=TipoEstudioSelect(),
     )
     radiologo = forms.ModelChoiceField(
         label='Radiólogo asignado',
         queryset=Usuario.objects.filter(
             rol=Usuario.ROL_MEDICO_RADIOLOGO, is_active=True
         ).order_by('username'),
+    )
+    medico_referente = forms.CharField(
+        label='Médico referente',
+        max_length=150,
+        required=False,
+        help_text='Médico externo que refiere al paciente (aparece en el reporte diario).',
     )
     fecha = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
     hora = forms.TimeField(widget=forms.TimeInput(attrs={'type': 'time'}))
@@ -90,6 +113,10 @@ class AgendarCitaForm(forms.Form):
     def __init__(self, *args, convenio=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['fecha_nacimiento'].widget.attrs['max'] = timezone.localdate().isoformat()
+        self.fields['tipo_estudio'].widget.detalles = {
+            str(te.pk): (te.precio, te.duracion_minutos)
+            for te in self.fields['tipo_estudio'].queryset
+        }
         self.convenio = convenio
         if convenio in CONVENIOS_QUE_REQUIEREN_CARNET_IGSS:
             self.fields['carnet_igss'].widget.attrs['required'] = True
@@ -267,13 +294,19 @@ class ProcesarTicketForm(forms.Form):
 class CrearTipoEstudioForm(forms.ModelForm):
     class Meta:
         model = TipoEstudio
-        fields = ('nombre', 'precio')
+        fields = ('nombre', 'precio', 'duracion_minutos')
 
     def clean_precio(self):
         precio = self.cleaned_data['precio']
         if precio <= 0:
             raise forms.ValidationError('El precio debe ser mayor a 0.')
         return precio
+
+    def clean_duracion_minutos(self):
+        duracion = self.cleaned_data['duracion_minutos']
+        if duracion <= 0:
+            raise forms.ValidationError('La duración debe ser mayor a 0 minutos.')
+        return duracion
 
 
 class GenerarOrdenForm(forms.Form):

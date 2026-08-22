@@ -33,8 +33,8 @@
     {% endfor %}
 {% else %}
     <p class="vacio">
-        {% if busqueda %}
-            No se encontró ningún paciente con estudios realizados que coincida con "{{ busqueda }}".
+        {% if busqueda or filtro_convenio or filtro_fecha or filtro_tipo_estudio %}
+            Ningún paciente con estudios realizados coincide con la búsqueda o los filtros elegidos.
         {% else %}
             Todavía no hay pacientes con estudios realizados.
         {% endif %}

@@ -15,6 +15,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
+            padding-right: 4rem;
         }
         h1 {
             color: #0f172a;
@@ -49,6 +50,46 @@
         }
         form.buscador button:hover {
             background: #1d4ed8;
+        }
+        .filtros {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 1rem;
+            background: white;
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        .filtro-grupo {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .filtro-grupo label {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .filtro-grupo select,
+        .filtro-grupo input {
+            padding: 0.45rem 0.6rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+        .btn-limpiar-filtros {
+            background: #e2e8f0;
+            color: #334155;
+            border: none;
+            border-radius: 6px;
+            padding: 0.5rem 0.9rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        .btn-limpiar-filtros:hover {
+            background: #cbd5e1;
         }
         .paciente {
             display: flex;
@@ -143,6 +184,34 @@
         <button type="submit">Buscar</button>
     </form>
 
+    <div class="filtros">
+        <div class="filtro-grupo">
+            <label for="filtro-convenio">Convenio</label>
+            <select id="filtro-convenio">
+                <option value="">Todos</option>
+                <option value="coex" {% if filtro_convenio == 'coex' %}selected{% endif %}>COEX</option>
+                <option value="privado" {% if filtro_convenio == 'privado' %}selected{% endif %}>Privado</option>
+                <option value="emergencia_igss" {% if filtro_convenio == 'emergencia_igss' %}selected{% endif %}>Emergencia IGSS</option>
+            </select>
+        </div>
+        <div class="filtro-grupo">
+            <label for="filtro-fecha">Fecha</label>
+            <input type="date" id="filtro-fecha" value="{{ filtro_fecha }}">
+        </div>
+        <div class="filtro-grupo">
+            <label for="filtro-tipo-estudio">Estudio</label>
+            <select id="filtro-tipo-estudio">
+                <option value="">Todos</option>
+                {% for tipo in tipos_estudio %}
+                    <option value="{{ tipo.id }}" {% if filtro_tipo_estudio == tipo.id|stringformat:'s' %}selected{% endif %}>
+                        {{ tipo.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="button" class="btn-limpiar-filtros" id="btn-limpiar-filtros">Limpiar filtros</button>
+    </div>
+
     <div id="resultados">
         {% include 'pacientes/includes/_resultados_pacientes.html' %}
     </div>
@@ -150,14 +219,27 @@
     <script>
         (function () {
             var input = document.getElementById('input-buscador');
+            var filtroConvenio = document.getElementById('filtro-convenio');
+            var filtroFecha = document.getElementById('filtro-fecha');
+            var filtroTipoEstudio = document.getElementById('filtro-tipo-estudio');
             var resultados = document.getElementById('resultados');
             var baseUrl = "{% url 'historial_pacientes' %}";
             var temporizador = null;
             var peticionActual = null;
 
-            function buscar() {
+            function construirUrl() {
+                var params = new URLSearchParams();
                 var q = input.value.trim();
-                var url = q ? baseUrl + '?q=' + encodeURIComponent(q) : baseUrl;
+                if (q) params.set('q', q);
+                if (filtroConvenio.value) params.set('convenio', filtroConvenio.value);
+                if (filtroFecha.value) params.set('fecha', filtroFecha.value);
+                if (filtroTipoEstudio.value) params.set('tipo_estudio', filtroTipoEstudio.value);
+                var query = params.toString();
+                return query ? baseUrl + '?' + query : baseUrl;
+            }
+
+            function buscar() {
+                var url = construirUrl();
 
                 if (peticionActual) {
                     peticionActual.abort();
@@ -189,6 +271,17 @@
             document.getElementById('form-buscador').addEventListener('submit', function (evento) {
                 evento.preventDefault();
                 clearTimeout(temporizador);
+                buscar();
+            });
+
+            [filtroConvenio, filtroFecha, filtroTipoEstudio].forEach(function (elemento) {
+                elemento.addEventListener('change', buscar);
+            });
+
+            document.getElementById('btn-limpiar-filtros').addEventListener('click', function () {
+                filtroConvenio.value = '';
+                filtroFecha.value = '';
+                filtroTipoEstudio.value = '';
                 buscar();
             });
         })();

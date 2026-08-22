@@ -43,6 +43,16 @@ class AgendarCitaForm(forms.Form):
     )
     sexo = forms.ChoiceField(choices=Paciente.SEXO_CHOICES)
     telefono = forms.CharField(max_length=20, required=False)
+
+    correo = forms.EmailField(
+    label='Correo electrónico',
+    max_length=254,
+    required=True,
+    widget=forms.EmailInput(attrs={
+        'placeholder': 'paciente@correo.com',
+        'autocomplete': 'email',
+        }),
+    )
     fecha_nacimiento = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
 
     tipo_estudio = forms.ModelChoiceField(
@@ -82,6 +92,10 @@ class AgendarCitaForm(forms.Form):
             raise forms.ValidationError('El apellido solo puede contener letras y espacios.')
         return apellido
 
+    def clean_correo(self):
+        return self.cleaned_data['correo'].strip().lower()
+    
+
     def clean_fecha_nacimiento(self):
         fecha = self.cleaned_data['fecha_nacimiento']
         validar_fecha_nacimiento_no_futura(fecha)
@@ -120,6 +134,16 @@ class RegistrarTicketForm(forms.Form):
     )
     sexo = forms.ChoiceField(choices=Paciente.SEXO_CHOICES)
     telefono = forms.CharField(max_length=20, required=False)
+    correo = forms.EmailField(
+    label='Correo electrónico',
+    max_length=254,
+    required=True,
+    widget=forms.EmailInput(attrs={
+        'placeholder': 'paciente@correo.com',
+        'autocomplete': 'email',
+     }),
+    )
+
     fecha_nacimiento = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
     prioridad = forms.ChoiceField(
         choices=Ticket.PRIORIDAD_CHOICES,
@@ -156,6 +180,10 @@ class RegistrarTicketForm(forms.Form):
         if not NOMBRE_REGEX.match(apellido):
             raise forms.ValidationError('El apellido solo puede contener letras y espacios.')
         return apellido
+
+    def clean_correo(self):
+        return self.cleaned_data['correo'].strip().lower()
+
 
     def clean_fecha_nacimiento(self):
         fecha = self.cleaned_data['fecha_nacimiento']

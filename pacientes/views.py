@@ -8,9 +8,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from .correos import enviar_resultados
 
 from accounts.models import Bitacora, Usuario
 from accounts.views import es_administrador
+from urllib.parse import urlencode
 
 from .forms import (
     AdjuntarImagenesForm,
@@ -119,8 +121,14 @@ def _notificar_estudio_completado(cita):
     )
 
 
-CAMPOS_DATOS_PACIENTE = ('nombre', 'apellido', 'sexo', 'telefono', 'fecha_nacimiento')
-
+CAMPOS_DATOS_PACIENTE = (
+    'nombre',
+    'apellido',
+    'sexo',
+    'telefono',
+    'correo',
+    'fecha_nacimiento',
+)
 
 def obtener_o_actualizar_paciente(cd):
     """Reutiliza el paciente si el DPI ya existe (evita duplicar el registro)
@@ -152,13 +160,16 @@ def buscar_paciente_por_dpi(request):
     if not paciente:
         return JsonResponse({'encontrado': False})
     return JsonResponse({
-        'encontrado': True,
-        'nombre': paciente.nombre,
-        'apellido': paciente.apellido,
-        'sexo': paciente.sexo,
-        'telefono': paciente.telefono,
-        'fecha_nacimiento': (
-            paciente.fecha_nacimiento.isoformat() if paciente.fecha_nacimiento else ''
+    'encontrado': True,
+    'nombre': paciente.nombre,
+    'apellido': paciente.apellido,
+    'sexo': paciente.sexo,
+    'telefono': paciente.telefono,
+    'correo': paciente.correo or '',
+    'fecha_nacimiento': (
+        paciente.fecha_nacimiento.isoformat()
+        if paciente.fecha_nacimiento
+        else ''
         ),
     })
 
@@ -483,6 +494,9 @@ def adjuntar_informe(request, cita_id):
             ])
             cita.estado = Cita.ESTADO_PROCESADA
             cita.save(update_fields=['estado'])
+
+            enviar_resultados(orden)
+
             _notificar_estudio_completado(cita)
             Bitacora.registrar(
                 request=request,
@@ -490,8 +504,13 @@ def adjuntar_informe(request, cita_id):
                 accion=Bitacora.ACCION_ADJUNTAR_INFORME,
                 descripcion=f'Adjuntó el informe de {cita.paciente} (cita #{cita.id}).',
             )
-            messages.success(request, f'Informe adjuntado para {cita.paciente}.')
-            return redirect(volver_url)
+            parametros = urlencode({
+            'envio': 'exitoso',
+            'paciente': f'{cita.paciente.nombre} {cita.paciente.apellido}',
+            'correo': cita.paciente.correo or '',
+        })
+
+        return redirect(f'{volver_url}?{parametros}')
     else:
         form = AdjuntarInformeForm()
 

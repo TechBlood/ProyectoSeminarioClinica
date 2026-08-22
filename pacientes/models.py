@@ -21,6 +21,11 @@ class Paciente(models.Model):
     apellido = models.CharField(max_length=100)
     sexo = models.CharField(max_length=1, choices=SEXO_CHOICES)
     telefono = models.CharField(max_length=20, blank=True)
+    correo = models.EmailField(
+    blank=True,
+    null=True
+    )
+
     fecha_nacimiento = models.DateField()
 
     class Meta:

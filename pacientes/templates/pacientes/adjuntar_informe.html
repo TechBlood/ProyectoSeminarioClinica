@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Adjuntar informe - Clínica de Imágenes</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -10,28 +11,33 @@
             margin: 0;
             padding: 2rem;
         }
+
         .topbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
         }
+
         h1 {
             color: #0f172a;
             font-size: 1.3rem;
         }
+
         a.volver {
             color: #2563eb;
             text-decoration: none;
             font-size: 0.85rem;
         }
+
         .card {
             background: white;
             border-radius: 12px;
             padding: 2rem;
             max-width: 560px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
+
         .resumen {
             background: #f8fafc;
             border: 1px solid #e2e8f0;
@@ -41,9 +47,11 @@
             color: #334155;
             margin-bottom: 1.25rem;
         }
+
         .resumen strong {
             color: #0f172a;
         }
+
         label {
             display: block;
             font-size: 0.85rem;
@@ -51,10 +59,13 @@
             margin-bottom: 0.25rem;
             margin-top: 1rem;
         }
+
         label:first-of-type {
             margin-top: 0;
         }
-        textarea, input[type="file"] {
+
+        textarea,
+        input[type="file"] {
             width: 100%;
             padding: 0.5rem;
             border: 1px solid #cbd5e1;
@@ -62,11 +73,13 @@
             box-sizing: border-box;
             font-family: inherit;
         }
+
         .ayuda {
             font-size: 0.75rem;
             color: #64748b;
             margin-top: 0.25rem;
         }
+
         .errorlist {
             color: #dc2626;
             font-size: 0.8rem;
@@ -74,12 +87,14 @@
             padding: 0;
             margin: 0.25rem 0 0;
         }
+
         .imagenes {
             display: flex;
             flex-wrap: wrap;
             gap: 0.75rem;
             margin-bottom: 1.25rem;
         }
+
         .imagenes a {
             display: block;
             width: 110px;
@@ -88,6 +103,7 @@
             text-align: center;
             text-decoration: none;
         }
+
         .imagenes img {
             width: 110px;
             height: 110px;
@@ -97,33 +113,237 @@
             display: block;
             margin-bottom: 0.25rem;
         }
+
         button {
             margin-top: 1.25rem;
             width: 100%;
-            padding: 0.6rem;
+            padding: 0.7rem;
             background: #2563eb;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 7px;
             font-weight: bold;
             cursor: pointer;
+            transition: background 0.2s ease;
         }
+
         button:hover {
             background: #1d4ed8;
         }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 9999;
+        }
+
+        .modal.mostrar {
+            display: flex;
+        }
+
+        .modal-contenido {
+            width: 100%;
+            max-width: 460px;
+            background: white;
+            border-radius: 18px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+            animation: aparecerModal 0.22s ease-out;
+        }
+
+        .modal-icono {
+            width: 76px;
+            height: 76px;
+            margin: 0 auto 1rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #dbeafe;
+            font-size: 2.2rem;
+        }
+
+        .modal-contenido h2 {
+            color: #0f172a;
+            margin: 0 0 0.8rem;
+        }
+
+        .modal-contenido p {
+            color: #475569;
+            line-height: 1.5;
+        }
+
+        .modal-detalle {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            text-align: left;
+            color: #334155;
+            line-height: 1.7;
+        }
+
+        .modal-pregunta {
+            font-weight: bold;
+            color: #0f172a !important;
+        }
+
+        .modal-botones {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.25rem;
+        }
+
+        .modal-botones button {
+            width: 50%;
+            margin-top: 0;
+        }
+
+        .btn-cancelar {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .btn-cancelar:hover {
+            background: #cbd5e1;
+        }
+
+        .btn-confirmar {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-confirmar:hover {
+            background: #1d4ed8;
+        }
+
+        .modal-cargando {
+            max-width: 420px;
+        }
+
+        .spinner {
+            width: 58px;
+            height: 58px;
+            margin: 0 auto 1.2rem;
+            border: 6px solid #dbeafe;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: girar 0.85s linear infinite;
+        }
+
+        .texto-espera {
+            margin-bottom: 1.25rem;
+        }
+
+        .pasos-envio {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .paso {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0;
+            color: #334155;
+            font-size: 0.95rem;
+        }
+
+        .paso + .paso {
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .paso-icono {
+            width: 26px;
+            height: 26px;
+            min-width: 26px;
+            border-radius: 50%;
+            background: #dcfce7;
+            color: #15803d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        @keyframes girar {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @keyframes aparecerModal {
+            from {
+                opacity: 0;
+                transform: translateY(18px) scale(0.97);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @media (max-width: 520px) {
+            body {
+                padding: 1rem;
+            }
+
+            .modal-botones {
+                flex-direction: column;
+            }
+
+            .modal-botones button {
+                width: 100%;
+            }
+        }
     </style>
 </head>
+
 <body>
-{% include 'includes/notificaciones.html' %}
+    {% include 'includes/notificaciones.html' %}
+
     <div class="topbar">
         <h1>Adjuntar informe</h1>
-        <a class="volver" href="{{ volver_url }}">&larr; Volver al listado</a>
+
+        <a class="volver" href="{{ volver_url }}">
+            &larr; Volver al listado
+        </a>
     </div>
+
     <div class="card">
         <div class="resumen">
-            <strong>{{ cita.paciente.nombre }} {{ cita.paciente.apellido }}</strong> ({{ cita.paciente.dpi }})<br>
-            {{ edad }} años, {{ cita.paciente.get_sexo_display }}<br>
-            Estudio: {{ cita.tipo_estudio.nombre }} — {{ cita.fecha }} {{ cita.hora|time:'H:i' }}<br>
+            <strong>
+                {{ cita.paciente.nombre }}
+                {{ cita.paciente.apellido }}
+            </strong>
+
+            ({{ cita.paciente.dpi }})<br>
+
+            {{ edad }} años,
+            {{ cita.paciente.get_sexo_display }}<br>
+
+            Estudio:
+            {{ cita.tipo_estudio.nombre }}
+            —
+            {{ cita.fecha }}
+            {{ cita.hora|time:'H:i' }}<br>
+
             Motivo: {{ orden.motivo }}
         </div>
 
@@ -133,28 +353,215 @@
                     {% if img.archivo.name|lower|slice:"-4:" == '.dcm' %}
                         📄 {{ img.archivo.name }}
                     {% else %}
-                        <img src="{{ img.archivo.url }}" alt="Imagen del estudio">
+                        <img
+                            src="{{ img.archivo.url }}"
+                            alt="Imagen del estudio"
+                        >
                         Ver completa
                     {% endif %}
                 </a>
+            {% empty %}
+                <p>No hay imágenes adjuntas.</p>
             {% endfor %}
         </div>
 
-        <form method="post" enctype="multipart/form-data">
+        <form
+            method="post"
+            enctype="multipart/form-data"
+            id="form-informe"
+        >
             {% csrf_token %}
+
             {{ form.non_field_errors }}
 
-            <label for="{{ form.informe_texto.id_for_label }}">{{ form.informe_texto.label }}</label>
+            <label for="{{ form.informe_texto.id_for_label }}">
+                {{ form.informe_texto.label }}
+            </label>
+
             {{ form.informe_texto }}
             {{ form.informe_texto.errors }}
 
-            <label for="{{ form.informe_archivo.id_for_label }}">{{ form.informe_archivo.label }}</label>
+            <label for="{{ form.informe_archivo.id_for_label }}">
+                {{ form.informe_archivo.label }}
+            </label>
+
             {{ form.informe_archivo }}
-            <p class="ayuda">Puedes escribir el informe, adjuntar un PDF, o ambos.</p>
+
+            <p class="ayuda">
+                Puedes escribir el informe, adjuntar un PDF, o ambos.
+            </p>
+
             {{ form.informe_archivo.errors }}
 
-            <button type="submit">Guardar informe y marcar como procesada</button>
+            <button type="submit" id="btn-guardar-informe">
+                Guardar informe y enviar resultados
+            </button>
         </form>
     </div>
+
+    <div id="modal-confirmacion" class="modal">
+        <div class="modal-contenido">
+            <div class="modal-icono">📧</div>
+
+            <h2>Confirmar envío de resultados</h2>
+
+            <p>
+                Se guardará el informe médico, el estudio quedará marcado como
+                procesado y los resultados se enviarán al correo del paciente.
+            </p>
+
+            <div class="modal-detalle">
+                <strong>Paciente:</strong>
+                {{ cita.paciente.nombre }}
+                {{ cita.paciente.apellido }}<br>
+
+                <strong>Estudio:</strong>
+                {{ cita.tipo_estudio.nombre }}<br>
+
+                <strong>Correo:</strong>
+                {{ cita.paciente.correo|default:"No registrado" }}
+            </div>
+
+            <p class="modal-pregunta">
+                ¿Desea continuar?
+            </p>
+
+            <div class="modal-botones">
+                <button
+                    type="button"
+                    id="btn-cancelar-modal"
+                    class="btn-cancelar"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="button"
+                    id="btn-confirmar-envio"
+                    class="btn-confirmar"
+                >
+                    Sí, enviar resultados
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-cargando" class="modal">
+        <div class="modal-contenido modal-cargando">
+            <div class="spinner"></div>
+
+            <h2>Enviando resultados...</h2>
+
+            <p class="texto-espera">
+                Espere un momento. No cierre ni recargue esta página.
+            </p>
+
+            <div class="pasos-envio">
+                <div class="paso">
+                    <span class="paso-icono">✓</span>
+                    <span>Guardando informe...</span>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-icono">✓</span>
+                    <span>Adjuntando imágenes...</span>
+                </div>
+
+                <div class="paso">
+                    <span class="paso-icono">✓</span>
+                    <span>Enviando correo al paciente...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const formulario =
+                document.getElementById('form-informe');
+
+            const botonPrincipal =
+                document.getElementById('btn-guardar-informe');
+
+            const modalConfirmacion =
+                document.getElementById('modal-confirmacion');
+
+            const modalCargando =
+                document.getElementById('modal-cargando');
+
+            const botonCancelar =
+                document.getElementById('btn-cancelar-modal');
+
+            const botonConfirmar =
+                document.getElementById('btn-confirmar-envio');
+
+            let envioConfirmado = false;
+
+            if (
+                !formulario ||
+                !botonPrincipal ||
+                !modalConfirmacion ||
+                !modalCargando ||
+                !botonCancelar ||
+                !botonConfirmar
+            ) {
+                return;
+            }
+
+            formulario.addEventListener('submit', function (event) {
+                if (!envioConfirmado) {
+                    event.preventDefault();
+
+                    if (!formulario.reportValidity()) {
+                        return;
+                    }
+
+                    modalConfirmacion.classList.add('mostrar');
+                }
+            });
+
+            botonCancelar.addEventListener('click', function () {
+                modalConfirmacion.classList.remove('mostrar');
+            });
+
+            botonConfirmar.addEventListener('click', function () {
+                if (envioConfirmado) {
+                    return;
+                }
+
+                envioConfirmado = true;
+
+                botonConfirmar.disabled = true;
+                botonCancelar.disabled = true;
+
+                modalConfirmacion.classList.remove('mostrar');
+                modalCargando.classList.add('mostrar');
+
+                botonPrincipal.disabled = true;
+                botonPrincipal.textContent = 'Enviando resultados...';
+
+                formulario.submit();
+            });
+
+            modalConfirmacion.addEventListener('click', function (event) {
+                if (
+                    event.target === modalConfirmacion &&
+                    !envioConfirmado
+                ) {
+                    modalConfirmacion.classList.remove('mostrar');
+                }
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (
+                    event.key === 'Escape' &&
+                    modalConfirmacion.classList.contains('mostrar') &&
+                    !envioConfirmado
+                ) {
+                    modalConfirmacion.classList.remove('mostrar');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

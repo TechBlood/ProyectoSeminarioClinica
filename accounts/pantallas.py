@@ -32,6 +32,15 @@ PANTALLAS_POR_ROL = {
             ],
         },
         {'nombre': 'Estudios realizados', 'url_name': 'historial_pacientes'},
+        {
+            'nombre': 'Reportes diarios',
+            'clave': 'reportes_diarios',
+            'submenu': [
+                {'nombre': 'COEX', 'url_name': 'lista_reportes_diarios_coex'},
+                {'nombre': 'Privado', 'url_name': 'lista_reportes_diarios_privado'},
+                {'nombre': 'Emergencia IGSS', 'url_name': 'lista_reportes_diarios_emergencia_igss'},
+            ],
+        },
     ],
     Usuario.ROL_TECNICO_IMAGENES: [
         {'nombre': 'Órdenes pendientes', 'url_name': 'ordenes_pendientes'},
@@ -41,6 +50,17 @@ PANTALLAS_POR_ROL = {
         {'nombre': 'Citas procesadas', 'url_name': 'citas_procesadas'},
     ],
     Usuario.ROL_MEDICO_REMITENTE: [],
+    Usuario.ROL_ADMINISTRADOR_FINANCIERO: [
+        {
+            'nombre': 'Reportes diarios',
+            'clave': 'reportes_diarios',
+            'submenu': [
+                {'nombre': 'COEX', 'url_name': 'lista_reportes_diarios_coex'},
+                {'nombre': 'Privado', 'url_name': 'lista_reportes_diarios_privado'},
+                {'nombre': 'Emergencia IGSS', 'url_name': 'lista_reportes_diarios_emergencia_igss'},
+            ],
+        },
+    ],
 }
 
 

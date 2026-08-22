@@ -5,6 +5,7 @@ from django.db import models
 
 class Usuario(AbstractUser):
     ROL_ADMINISTRADOR = 'administrador'
+    ROL_ADMINISTRADOR_FINANCIERO = 'administrador_financiero'
     ROL_RECEPCIONISTA = 'recepcionista'
     ROL_TECNICO_IMAGENES = 'tecnico_imagenes'
     ROL_MEDICO_RADIOLOGO = 'medico_radiologo'
@@ -12,6 +13,7 @@ class Usuario(AbstractUser):
 
     ROL_CHOICES = [
         (ROL_ADMINISTRADOR, 'Administrador'),
+        (ROL_ADMINISTRADOR_FINANCIERO, 'Administrador financiero'),
         (ROL_RECEPCIONISTA, 'Recepcionista'),
         (ROL_TECNICO_IMAGENES, 'Técnico de imágenes'),
         (ROL_MEDICO_RADIOLOGO, 'Médico radiólogo'),
@@ -19,7 +21,7 @@ class Usuario(AbstractUser):
     ]
 
     rol = models.CharField(
-        max_length=20,
+        max_length=25,
         choices=ROL_CHOICES,
         default=ROL_ADMINISTRADOR,
         verbose_name='rol',
@@ -76,6 +78,7 @@ class Bitacora(models.Model):
     ACCION_ADJUNTAR_INFORME = 'adjuntar_informe'
     ACCION_REGISTRAR_TICKET = 'registrar_ticket'
     ACCION_PROCESAR_TICKET = 'procesar_ticket'
+    ACCION_ENVIAR_REPORTE_DIARIO = 'enviar_reporte_diario'
 
     ACCION_CHOICES = [
         (ACCION_LOGIN_EXITOSO, 'Inicio de sesión'),
@@ -93,6 +96,7 @@ class Bitacora(models.Model):
         (ACCION_ADJUNTAR_INFORME, 'Carga de informe'),
         (ACCION_REGISTRAR_TICKET, 'Registro de ticket de emergencia'),
         (ACCION_PROCESAR_TICKET, 'Procesamiento de ticket (genera orden de trabajo)'),
+        (ACCION_ENVIAR_REPORTE_DIARIO, 'Envío de reporte diario'),
     ]
 
     usuario = models.ForeignKey(

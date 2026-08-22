@@ -66,6 +66,11 @@ class Paciente(models.Model):
 class TipoEstudio(models.Model):
     nombre = models.CharField(max_length=50, unique=True)
     precio = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    duracion_minutos = models.PositiveIntegerField(
+        default=30,
+        verbose_name='duración (minutos)',
+        help_text='Cuánto tiempo ocupa este estudio en el calendario de citas.',
+    )
     activo = models.BooleanField(default=True)
     radiologos = models.ManyToManyField(
         settings.AUTH_USER_MODEL, blank=True, related_name='tipos_estudio_asignados',
@@ -120,6 +125,11 @@ class Cita(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ESTADO_PENDIENTE)
     fecha = models.DateField()
     hora = models.TimeField()
+    medico_referente = models.CharField(
+        max_length=150, blank=True,
+        verbose_name='médico referente',
+        help_text='Nombre del médico externo que refiere al paciente (para el reporte diario).',
+    )
     fecha_sugerida = models.DateField(null=True, blank=True)
     hora_sugerida = models.TimeField(null=True, blank=True)
     hora_llegada = models.DateTimeField(null=True, blank=True)
@@ -162,6 +172,71 @@ class Cita(models.Model):
         return cls.objects.filter(
             estado=cls.ESTADO_AGENDADA, fecha__lte=fecha_limite
         ).update(estado=cls.ESTADO_AUSENTE)
+
+    @property
+    def tecnico_asignado(self):
+        """Técnico que subió las imágenes de este estudio, para el reporte
+        diario. Vacío si el estudio todavía no se procesó."""
+        orden = getattr(self, 'orden_trabajo', None)
+        if not orden:
+            return None
+        imagen = orden.imagenes.first()
+        return imagen.subida_por if imagen else None
+
+    @property
+    def cuenta_en_total_reporte(self):
+        """Las citas marcadas como ausente no generaron ingreso: se listan en
+        el reporte diario pero no suman al total del día."""
+        return self.estado != self.ESTADO_AUSENTE
+
+
+class ReporteDiario(models.Model):
+    """Un reporte por convenio y fecha. Se crea automáticamente (en estado
+    borrador) la primera vez que se confirma una cita de ese convenio para
+    esa fecha (ver revisar_solicitud). Las citas que contiene no se guardan
+    aquí: se calculan en el momento a partir de Cita(convenio, fecha), así
+    nunca quedan desactualizadas si una cita se reagenda o se marca ausente."""
+
+    ESTADO_BORRADOR = 'borrador'
+    ESTADO_ENVIADO = 'enviado'
+
+    ESTADO_CHOICES = [
+        (ESTADO_BORRADOR, 'Borrador'),
+        (ESTADO_ENVIADO, 'Enviado'),
+    ]
+
+    fecha = models.DateField()
+    convenio = models.CharField(max_length=20, choices=Cita.CONVENIO_CHOICES)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default=ESTADO_BORRADOR)
+    enviado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='reportes_diarios_enviados',
+    )
+    enviado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'reportes_diarios'
+        verbose_name = 'reporte diario'
+        verbose_name_plural = 'reportes diarios'
+        unique_together = ('fecha', 'convenio')
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f'Reporte {self.get_convenio_display()} - {self.fecha}'
+
+    def citas(self):
+        return (
+            Cita.objects.filter(convenio=self.convenio, fecha=self.fecha)
+            .exclude(estado__in=(Cita.ESTADO_PENDIENTE, Cita.ESTADO_RECHAZADA))
+            .select_related('paciente', 'tipo_estudio', 'radiologo')
+            .order_by('hora')
+        )
+
+    def total(self):
+        return sum(
+            (cita.tipo_estudio.precio for cita in self.citas() if cita.cuenta_en_total_reporte),
+            start=0,
+        )
 
 
 class OrdenTrabajo(models.Model):

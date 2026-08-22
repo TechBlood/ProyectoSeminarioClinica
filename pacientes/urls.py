@@ -109,4 +109,38 @@ urlpatterns = [
         views.marcar_notificaciones_leidas,
         name='marcar_notificaciones_leidas',
     ),
+    path(
+        'reportes/coex/',
+        views.lista_reportes_diarios,
+        {'convenio': Cita.CONVENIO_COEX},
+        name='lista_reportes_diarios_coex',
+    ),
+    path(
+        'reportes/privado/',
+        views.lista_reportes_diarios,
+        {'convenio': Cita.CONVENIO_PRIVADO},
+        name='lista_reportes_diarios_privado',
+    ),
+    path(
+        'reportes/emergencia-igss/',
+        views.lista_reportes_diarios,
+        {'convenio': Cita.CONVENIO_EMERGENCIA_IGSS},
+        name='lista_reportes_diarios_emergencia_igss',
+    ),
+    path('reportes/<str:convenio>/<str:fecha>/', views.ver_reporte_diario, name='ver_reporte_diario'),
+    path(
+        'reportes/<str:convenio>/<str:fecha>/enviar/',
+        views.enviar_reporte_diario,
+        name='enviar_reporte_diario',
+    ),
+    path(
+        'reportes/<str:convenio>/<str:fecha>/pdf/',
+        views.descargar_reporte_pdf,
+        name='descargar_reporte_pdf',
+    ),
+    path(
+        'reportes/<str:convenio>/<str:fecha>/xlsx/',
+        views.descargar_reporte_xlsx,
+        name='descargar_reporte_xlsx',
+    ),
 ]

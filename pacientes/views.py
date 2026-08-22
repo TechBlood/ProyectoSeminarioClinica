@@ -4,7 +4,7 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
@@ -26,12 +26,15 @@ from .forms import (
 from .horarios import (
     DIAS_SEMANA,
     LIMITE_DIAS_ADELANTE,
+    PASO_MINUTOS,
     en_el_pasado,
     fuera_de_ventana,
-    horas_disponibles,
+    horarios_disponibles,
     inicio_semana,
+    rango_ocupado_por,
+    se_cruzan,
 )
-from .models import Cita, ImagenEstudio, Notificacion, OrdenTrabajo, Paciente, Ticket
+from .models import Cita, ImagenEstudio, Notificacion, OrdenTrabajo, Paciente, ReporteDiario, Ticket
 
 
 def es_recepcionista(user):
@@ -44,6 +47,14 @@ def es_tecnico(user):
 
 def es_radiologo(user):
     return user.is_authenticated and user.rol == Usuario.ROL_MEDICO_RADIOLOGO
+
+
+def es_administrador_financiero(user):
+    return user.is_authenticated and (user.is_superuser or user.rol == Usuario.ROL_ADMINISTRADOR_FINANCIERO)
+
+
+def puede_ver_reportes_diarios(user):
+    return es_recepcionista(user) or es_administrador_financiero(user)
 
 
 def _notificar_cita_asignada(cita):
@@ -401,10 +412,20 @@ def seleccionar_horario(request, convenio):
     inicio = inicio_semana(semana_param or hoy)
     dias = [inicio + datetime.timedelta(days=i) for i in range(len(DIAS_SEMANA))]
 
-    conteos = {}
-    for cita in Cita.objects.filter(fecha__gte=dias[0], fecha__lte=dias[-1]):
-        clave = (cita.fecha, cita.hora.hour)
-        conteos[clave] = conteos.get(clave, 0) + 1
+    citas_semana = (
+        Cita.objects.filter(fecha__gte=dias[0], fecha__lte=dias[-1])
+        .exclude(estado=Cita.ESTADO_RECHAZADA)
+        .select_related('tipo_estudio')
+    )
+    if reagendar_cita:
+        citas_semana = citas_semana.exclude(id=reagendar_cita.id)
+
+    ocupados_por_dia = {}
+    asignados_por_dia = {}
+    for cita in citas_semana:
+        rango = rango_ocupado_por(cita.fecha, cita.hora, cita.tipo_estudio.duracion_minutos)
+        ocupados_por_dia.setdefault(cita.fecha, []).append(rango)
+        asignados_por_dia.setdefault(cita.fecha, set()).add(cita.hora)
 
     filas = [
         {
@@ -413,14 +434,21 @@ def seleccionar_horario(request, convenio):
                 {
                     'dia': dia,
                     'hora': hora,
-                    'cantidad': conteos.get((dia, hora), 0),
-                    'pasado': en_el_pasado(dia, datetime.time(hora, 0)),
+                    'pasado': en_el_pasado(dia, hora),
                     'fuera_rango': fuera_de_ventana(dia),
+                    'asignado': hora in asignados_por_dia.get(dia, set()),
+                    'ocupado': (
+                        hora not in asignados_por_dia.get(dia, set())
+                        and any(
+                            se_cruzan(rango_ocupado_por(dia, hora, PASO_MINUTOS), ocupado)
+                            for ocupado in ocupados_por_dia.get(dia, [])
+                        )
+                    ),
                 }
                 for dia in dias
             ],
         }
-        for hora in horas_disponibles()
+        for hora in horarios_disponibles()
     ]
 
     contexto = {
@@ -468,6 +496,17 @@ def agendar_cita(request, convenio):
             messages.error(request, 'Solo se pueden agendar citas hasta 3 semanas después de hoy.')
             return redirect(calendario_url)
 
+        ocupados = [
+            rango_ocupado_por(c.fecha, c.hora, c.tipo_estudio.duracion_minutos)
+            for c in Cita.objects.filter(fecha=cd['fecha'])
+            .exclude(estado=Cita.ESTADO_RECHAZADA)
+            .select_related('tipo_estudio')
+        ]
+        rango_nuevo = rango_ocupado_por(cd['fecha'], cd['hora'], cd['tipo_estudio'].duracion_minutos)
+        if any(se_cruzan(rango_nuevo, ocupado) for ocupado in ocupados):
+            messages.error(request, 'Ese horario ya no está disponible: se cruza con otra cita.')
+            return redirect(calendario_url)
+
         paciente = obtener_o_actualizar_paciente(cd)
         cita = Cita.objects.create(
             paciente=paciente,
@@ -477,6 +516,7 @@ def agendar_cita(request, convenio):
             estado=Cita.ESTADO_PENDIENTE,
             fecha=cd['fecha'],
             hora=cd['hora'],
+            medico_referente=cd['medico_referente'],
             fecha_sugerida=cd['fecha'],
             hora_sugerida=cd['hora'],
             notas=cd['notas'],
@@ -777,6 +817,7 @@ def revisar_solicitud(request, cita_id):
         cita.revisada_por = request.user
         cita.revisada_en = timezone.now()
         cita.save(update_fields=['fecha', 'hora', 'estado', 'revisada_por', 'revisada_en'])
+        ReporteDiario.objects.get_or_create(fecha=cita.fecha, convenio=cita.convenio)
         _notificar_cita_confirmada(cita)
         Bitacora.registrar(
             request=request,
@@ -843,10 +884,23 @@ def confirmar_reagenda(request, convenio, cita_id):
             messages.error(request, 'Solo se pueden reagendar citas hasta 3 semanas después de hoy.')
             return redirect(f'{calendario_url}?reagendar={cita.id}')
 
+        ocupados = [
+            rango_ocupado_por(c.fecha, c.hora, c.tipo_estudio.duracion_minutos)
+            for c in Cita.objects.filter(fecha=fecha)
+            .exclude(estado=Cita.ESTADO_RECHAZADA)
+            .exclude(id=cita.id)
+            .select_related('tipo_estudio')
+        ]
+        rango_nuevo = rango_ocupado_por(fecha, hora_valor, cita.tipo_estudio.duracion_minutos)
+        if any(se_cruzan(rango_nuevo, ocupado) for ocupado in ocupados):
+            messages.error(request, 'Ese horario ya no está disponible: se cruza con otra cita.')
+            return redirect(f'{calendario_url}?reagendar={cita.id}')
+
         cita.fecha = fecha
         cita.hora = hora_valor
         cita.estado = Cita.ESTADO_AGENDADA
         cita.save(update_fields=['fecha', 'hora', 'estado'])
+        ReporteDiario.objects.get_or_create(fecha=cita.fecha, convenio=cita.convenio)
         Bitacora.registrar(
             request=request,
             usuario=request.user,
@@ -1021,3 +1075,316 @@ def marcar_notificaciones_leidas(request):
     if request.method == 'POST':
         request.user.notificaciones.filter(leida=False).update(leida=True)
     return JsonResponse({'ok': True})
+
+
+# --- Reportes diarios ---------------------------------------------------
+#
+# Un ReporteDiario existe por (convenio, fecha). Se crea automáticamente en
+# estado "borrador" la primera vez que un radiólogo confirma una cita de ese
+# convenio para esa fecha (ver revisar_solicitud). Su contenido (las citas)
+# no se guarda aparte: se calcula en el momento a partir de Cita, así nunca
+# queda desactualizado. La recepcionista puede editar el médico referente de
+# cada fila mientras el reporte esté en borrador, y enviarlo cuando termine
+# el día; el administrador financiero solo ve los reportes ya enviados, y
+# puede descargarlos en PDF o Excel.
+
+DIAS_LARGOS_ES = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+MESES_LARGOS_ES = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+]
+
+COLUMNAS_REPORTE = [
+    'No.', 'Hora', 'Nombre del Paciente', 'Edad', 'Estudio',
+    'Técnico', 'Médico Referente', 'Emerg', 'Radiólogo', 'Precio',
+]
+
+
+def _fecha_larga_es(fecha):
+    dia_semana = DIAS_LARGOS_ES[fecha.weekday()]
+    mes = MESES_LARGOS_ES[fecha.month - 1]
+    return f'{dia_semana} {fecha.day} de {mes} de {fecha.year}'
+
+
+def _validar_convenio(convenio):
+    if convenio not in dict(Cita.CONVENIO_CHOICES):
+        raise Http404('Convenio no válido.')
+
+
+def _es_solo_administrador_financiero(user):
+    """True si debe ver el reporte en modo solo-lectura (solo enviados),
+    distinto de una recepcionista que también sea superusuario de pruebas."""
+    return es_administrador_financiero(user) and not es_recepcionista(user)
+
+
+def _filas_reporte(reporte):
+    filas = []
+    for indice, cita in enumerate(reporte.citas(), start=1):
+        tecnico = cita.tecnico_asignado
+        filas.append({
+            'no': indice,
+            'cita_id': cita.id,
+            'hora': cita.hora.strftime('%H:%M'),
+            'paciente': f'{cita.paciente.nombre} {cita.paciente.apellido}',
+            'edad': cita.paciente.edad_en(cita.fecha),
+            'estudio': cita.tipo_estudio.nombre,
+            'tecnico': (tecnico.get_full_name() or tecnico.username) if tecnico else '',
+            'medico_referente': cita.medico_referente,
+            'emerg': 'X' if cita.convenio == Cita.CONVENIO_EMERGENCIA_IGSS else '',
+            'radiologo': (
+                (cita.radiologo.get_full_name() or cita.radiologo.username) if cita.radiologo else ''
+            ),
+            'precio': cita.tipo_estudio.precio,
+            'ausente': cita.estado == Cita.ESTADO_AUSENTE,
+        })
+    return filas
+
+
+def _reporte_pdf_bytes(reporte, filas):
+    from io import BytesIO
+
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import landscape, letter
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=landscape(letter),
+        topMargin=1 * cm, bottomMargin=1 * cm, leftMargin=1 * cm, rightMargin=1 * cm,
+    )
+    estilos = getSampleStyleSheet()
+    titulo = Paragraph(
+        f'INFORME DIARIO "{reporte.get_convenio_display().upper()}"<br/>'
+        f'FECHA: {_fecha_larga_es(reporte.fecha).upper()}',
+        estilos['Title'],
+    )
+
+    datos = [COLUMNAS_REPORTE]
+    for fila in filas:
+        datos.append([
+            fila['no'], fila['hora'], fila['paciente'], fila['edad'] if fila['edad'] is not None else '',
+            fila['estudio'], fila['tecnico'], fila['medico_referente'], fila['emerg'], fila['radiologo'],
+            f"Q{fila['precio']:.2f}",
+        ])
+    datos.append(['', '', '', '', '', '', '', '', 'TOTAL DEL DÍA', f'Q{reporte.total():.2f}'])
+
+    tabla = Table(datos, repeatRows=1)
+    ultima_fila = len(datos) - 1
+    tabla.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#c4b5fd')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('SPAN', (0, ultima_fila), (-3, ultima_fila)),
+        ('BACKGROUND', (-2, ultima_fila), (-1, ultima_fila), colors.HexColor('#fef08a')),
+        ('FONTNAME', (-2, ultima_fila), (-1, ultima_fila), 'Helvetica-Bold'),
+    ]))
+    doc.build([titulo, Spacer(1, 12), tabla])
+    return buffer.getvalue()
+
+
+def _reporte_xlsx_bytes(reporte, filas):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Reporte'
+
+    ws.merge_cells('A1:J1')
+    ws['A1'] = f'INFORME DIARIO "{reporte.get_convenio_display().upper()}"'
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].alignment = Alignment(horizontal='center')
+
+    ws.merge_cells('A2:J2')
+    ws['A2'] = f'FECHA: {_fecha_larga_es(reporte.fecha).upper()}'
+    ws['A2'].alignment = Alignment(horizontal='center')
+
+    ws.append([])
+    ws.append(COLUMNAS_REPORTE)
+    for celda in ws[ws.max_row]:
+        celda.font = Font(bold=True, color='FFFFFF')
+        celda.fill = PatternFill('solid', fgColor='7C3AED')
+
+    for fila in filas:
+        ws.append([
+            fila['no'], fila['hora'], fila['paciente'], fila['edad'], fila['estudio'],
+            fila['tecnico'], fila['medico_referente'], fila['emerg'], fila['radiologo'],
+            float(fila['precio']),
+        ])
+
+    fila_total = ws.max_row + 1
+    ws.cell(row=fila_total, column=9, value='TOTAL DEL DÍA').font = Font(bold=True)
+    celda_total = ws.cell(row=fila_total, column=10, value=float(reporte.total()))
+    celda_total.font = Font(bold=True)
+    celda_total.fill = PatternFill('solid', fgColor='FEF08A')
+
+    from openpyxl.utils import get_column_letter
+
+    encabezados_fila = 4
+    for indice_columna in range(1, len(COLUMNAS_REPORTE) + 1):
+        letra = get_column_letter(indice_columna)
+        longitud = max(
+            (
+                len(str(ws.cell(row=fila, column=indice_columna).value))
+                for fila in range(encabezados_fila, ws.max_row + 1)
+                if ws.cell(row=fila, column=indice_columna).value is not None
+            ),
+            default=10,
+        )
+        ws.column_dimensions[letra].width = longitud + 2
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+@login_required
+@user_passes_test(puede_ver_reportes_diarios)
+def lista_reportes_diarios(request, convenio):
+    convenio_nombre = dict(Cita.CONVENIO_CHOICES).get(convenio, convenio)
+    solo_enviados = _es_solo_administrador_financiero(request.user)
+
+    # Red de seguridad: normalmente el reporte de una fecha se crea en el
+    # momento en que se confirma o reagenda una cita para ella, pero por si
+    # falta alguno (p. ej. citas ya confirmadas antes de tener esta lógica),
+    # se completa aquí cualquier fecha con citas confirmadas que todavía no
+    # tenga su ReporteDiario.
+    fechas_con_citas = (
+        Cita.objects.filter(convenio=convenio)
+        .exclude(estado__in=(Cita.ESTADO_PENDIENTE, Cita.ESTADO_RECHAZADA))
+        .values_list('fecha', flat=True)
+        .distinct()
+    )
+    fechas_existentes = set(
+        ReporteDiario.objects.filter(convenio=convenio).values_list('fecha', flat=True)
+    )
+    for fecha in fechas_con_citas:
+        if fecha not in fechas_existentes:
+            ReporteDiario.objects.get_or_create(fecha=fecha, convenio=convenio)
+
+    # Los reportes ya creados son el registro permanente: una vez que
+    # existen, deben seguir apareciendo aunque las citas que los originaron
+    # cambien después (se reagenden a otra fecha, se rechacen, etc.). Por
+    # eso se listan desde ReporteDiario y no recalculando a partir de Cita
+    # en cada visita. Se incluyen fechas futuras a propósito: si el
+    # radiólogo ya confirmó una cita para un día próximo, la recepcionista
+    # puede adelantar y enviar ese reporte si quiere, sin esperar a que
+    # llegue la fecha.
+    reportes = ReporteDiario.objects.filter(convenio=convenio).order_by('-fecha')
+    if solo_enviados:
+        reportes = reportes.filter(estado=ReporteDiario.ESTADO_ENVIADO)
+
+    return render(request, 'pacientes/lista_reportes_diarios.html', {
+        'convenio': convenio,
+        'convenio_nombre': convenio_nombre,
+        'reportes': reportes,
+        'solo_enviados': solo_enviados,
+    })
+
+
+@login_required
+@user_passes_test(puede_ver_reportes_diarios)
+def ver_reporte_diario(request, convenio, fecha):
+    _validar_convenio(convenio)
+    fecha_valor = parse_date(fecha)
+    if not fecha_valor:
+        raise Http404('Fecha no válida.')
+
+    reporte = get_object_or_404(ReporteDiario, convenio=convenio, fecha=fecha_valor)
+    solo_lectura = _es_solo_administrador_financiero(request.user)
+    if solo_lectura and reporte.estado != ReporteDiario.ESTADO_ENVIADO:
+        raise Http404('Este reporte todavía no fue enviado.')
+
+    editable = not solo_lectura and reporte.estado == ReporteDiario.ESTADO_BORRADOR
+
+    if request.method == 'POST':
+        if not editable:
+            messages.error(request, 'Este reporte ya no se puede editar.')
+            return redirect(request.path)
+        for cita in reporte.citas():
+            valor = request.POST.get(f'medico_referente_{cita.id}', '').strip()
+            if valor != cita.medico_referente:
+                cita.medico_referente = valor
+                cita.save(update_fields=['medico_referente'])
+        messages.success(request, 'Cambios guardados.')
+        return redirect(request.path)
+
+    return render(request, 'pacientes/reporte_diario.html', {
+        'reporte': reporte,
+        'convenio_nombre': dict(Cita.CONVENIO_CHOICES).get(convenio, convenio),
+        'columnas': COLUMNAS_REPORTE,
+        'filas': _filas_reporte(reporte),
+        'total': reporte.total(),
+        'editable': editable,
+        'solo_lectura': solo_lectura,
+        'lista_url_name': f'lista_reportes_diarios_{convenio}',
+    })
+
+
+@login_required
+@user_passes_test(es_recepcionista)
+def enviar_reporte_diario(request, convenio, fecha):
+    _validar_convenio(convenio)
+    fecha_valor = parse_date(fecha)
+    if not fecha_valor:
+        raise Http404('Fecha no válida.')
+
+    reporte = get_object_or_404(ReporteDiario, convenio=convenio, fecha=fecha_valor)
+    volver_url = reverse('ver_reporte_diario', args=[convenio, fecha])
+
+    if request.method == 'POST' and reporte.estado == ReporteDiario.ESTADO_BORRADOR:
+        reporte.estado = ReporteDiario.ESTADO_ENVIADO
+        reporte.enviado_por = request.user
+        reporte.enviado_en = timezone.now()
+        reporte.save(update_fields=['estado', 'enviado_por', 'enviado_en'])
+        Bitacora.registrar(
+            request=request,
+            usuario=request.user,
+            accion=Bitacora.ACCION_ENVIAR_REPORTE_DIARIO,
+            descripcion=(
+                f'Envió el reporte diario de {dict(Cita.CONVENIO_CHOICES).get(convenio, convenio)} '
+                f'del {fecha_valor} al administrador.'
+            ),
+        )
+        messages.success(request, f'Reporte del {fecha_valor} enviado al administrador.')
+    return redirect(volver_url)
+
+
+@login_required
+@user_passes_test(es_administrador_financiero)
+def descargar_reporte_pdf(request, convenio, fecha):
+    _validar_convenio(convenio)
+    fecha_valor = parse_date(fecha)
+    if not fecha_valor:
+        raise Http404('Fecha no válida.')
+    reporte = get_object_or_404(
+        ReporteDiario, convenio=convenio, fecha=fecha_valor, estado=ReporteDiario.ESTADO_ENVIADO,
+    )
+    contenido = _reporte_pdf_bytes(reporte, _filas_reporte(reporte))
+    respuesta = HttpResponse(contenido, content_type='application/pdf')
+    respuesta['Content-Disposition'] = f'attachment; filename="reporte_{convenio}_{fecha_valor}.pdf"'
+    return respuesta
+
+
+@login_required
+@user_passes_test(es_administrador_financiero)
+def descargar_reporte_xlsx(request, convenio, fecha):
+    _validar_convenio(convenio)
+    fecha_valor = parse_date(fecha)
+    if not fecha_valor:
+        raise Http404('Fecha no válida.')
+    reporte = get_object_or_404(
+        ReporteDiario, convenio=convenio, fecha=fecha_valor, estado=ReporteDiario.ESTADO_ENVIADO,
+    )
+    contenido = _reporte_xlsx_bytes(reporte, _filas_reporte(reporte))
+    respuesta = HttpResponse(
+        contenido, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    respuesta['Content-Disposition'] = f'attachment; filename="reporte_{convenio}_{fecha_valor}.xlsx"'
+    return respuesta

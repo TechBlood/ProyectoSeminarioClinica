@@ -13,7 +13,7 @@ class NotificacionAdmin(admin.ModelAdmin):
 
 @admin.register(TipoEstudio)
 class TipoEstudioAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'precio', 'activo')
+    list_display = ('nombre', 'precio', 'duracion_minutos', 'activo')
     list_filter = ('activo',)
     search_fields = ('nombre',)
     filter_horizontal = ('radiologos',)
